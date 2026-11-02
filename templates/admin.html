@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard – FoodRush</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#14232b;--teal:#0f4c5c;--teal-soft:#dbe9ec;--turmeric:#e8a317;--chili:#c8372d;--leaf:#2f7d4f;--bg:#f3f6f7;--line:#d5dfe2;--muted:#5d6f77;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);}
+    h1,h2,h3,h4,h5,h6,.brand{font-family:'Bricolage Grotesque',sans-serif;}
+    .topbar{background:var(--ink);}
+    .topbar .brand{color:#fff;font-weight:800;font-size:1.3rem;text-decoration:none;}
+    .topbar .brand span{color:var(--turmeric);}
+    .topbar .who{color:#cfe3e8;font-size:.9rem;}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.4rem;}
+    .form-control,.form-select{border-radius:8px;border-color:var(--line);}
+    .form-control:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
+    .btn-main{background:var(--teal);color:#fff;font-weight:700;border-radius:8px;border:0;}
+    .btn-main:hover{background:#0c3d4a;color:#fff;}
+    .btn-line{border:1.5px solid var(--line);font-weight:700;border-radius:8px;background:#fff;color:var(--ink);}
+    .btn-line:hover{border-color:var(--ink);}
+    .btn-del{border:1.5px solid #e9bcb8;color:var(--chili);font-weight:700;border-radius:8px;background:#fff;}
+    .btn-del:hover{background:var(--chili);color:#fff;}
+    .stat{background:#fff;border:1px solid var(--line);border-left:6px solid var(--ink);border-radius:12px;padding:1rem 1.2rem;}
+    .stat b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:1.7rem;}
+    .stat span{color:var(--muted);font-size:.85rem;}
+    .nav-pills .nav-link{color:var(--ink);font-weight:500;border:1px solid var(--line);background:#fff;border-radius:999px;margin-right:.4rem;margin-bottom:.4rem;}
+    .nav-pills .nav-link.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+    .st{display:inline-block;padding:.15rem .65rem;border-radius:999px;font-size:.8rem;font-weight:700;background:var(--teal-soft);color:var(--teal);}
+    .st.delivered,.st.available{background:#d9eee2;color:var(--leaf);}
+    .st.cancelled,.st.offline{background:#f6dcda;color:var(--chili);}
+    .st.busy{background:#fbecc8;color:#8a6100;}
+    table.tbl th{font-size:.82rem;color:var(--muted);font-weight:700;white-space:nowrap;}
+    table.tbl td{vertical-align:middle;font-size:.93rem;}
+    .rate{display:inline-block;background:var(--turmeric);border-radius:6px;padding:0 .5rem;font-weight:800;}
+    .scroll{max-height:70vh;overflow:auto;}
+  </style>
+</head>
+<body>
+
+<!--
+  Variables expected from Flask (render_template('admin.html', ...)):
+  stats      : dict -> customers, hotels, drivers, orders, revenue, avg_rating
+  orders     : list -> order_id, customer_id, customer_name, hotel_id, hotel_name, driver_id, driver_name, status,
+                       payment_mode, payment_status, total_price, tip, discount_pct, coupon, time_of_order, delivery_time
+  customers  : list -> customer_id, name, phone_number
+  hotels     : list -> hotel_id, hotel_name, city, opening_time, closing_time, pin_code
+  drivers    : list -> driver_id, name, contact_no, vehicle_no, status, current_city
+  reviews    : list -> review_id, order_id, target_type, rating, text_review
+  (Optional) q : current search text
+-->
+
+<nav class="topbar py-3">
+  <div class="container-xl d-flex justify-content-between align-items-center">
+    <a class="brand" href="/">Food<span>Rush</span></a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="who">Administrator</span>
+      <a href="/" class="btn btn-sm btn-line">Switch role</a>
+    </div>
+  </div>
+</nav>
+
+<main class="container-xl py-4">
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}
+      <div class="alert alert-info alert-dismissible fade show" role="alert">{{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>{{ stats.orders if stats else 0 }}</b><span>Orders</span></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>₹{{ stats.revenue if stats and stats.revenue else 0 }}</b><span>Revenue</span></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>{{ stats.customers if stats else 0 }}</b><span>Customers</span></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>{{ stats.hotels if stats else 0 }}</b><span>Hotels</span></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>{{ stats.drivers if stats else 0 }}</b><span>Drivers</span></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="stat"><b>{{ stats.avg_rating if stats and stats.avg_rating else '-' }}</b><span>Avg. rating</span></div></div>
+  </div>
+
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <ul class="nav nav-pills" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#t-orders" type="button">Orders</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#t-customers" type="button">Customers</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#t-hotels" type="button">Hotels</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#t-drivers" type="button">Drivers</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#t-reviews" type="button">Reviews</button></li>
+    </ul>
+    <input type="search" id="filter" class="form-control" style="max-width:18rem" placeholder="Filter rows in this tab" aria-label="Filter rows">
+  </div>
+
+  <div class="tab-content">
+
+    <!-- ============ ORDERS ============ -->
+    <div class="tab-pane fade show active" id="t-orders">
+      <div class="panel p-0 scroll">
+        <table class="table tbl mb-0 filterable">
+          <thead class="sticky-top bg-white"><tr>
+            <th>Order ID</th><th>Customer</th><th>Hotel</th><th>Driver</th><th>Status</th><th>Payment</th>
+            <th>Total</th><th>Tip</th><th>Disc %</th><th>Coupon</th><th>Ordered</th><th>Delivered</th><th>Assign driver / status</th>
+          </tr></thead>
+          <tbody>
+          {% for o in orders %}
+            <tr>
+              <td class="fw-bold">{{ o.order_id }}</td>
+              <td>{{ o.customer_name }}<div class="small text-muted">#{{ o.customer_id }}</div></td>
+              <td>{{ o.hotel_name }}</td>
+              <td>{{ o.driver_name if o.driver_name else 'Unassigned' }}</td>
+              <td><span class="st {{ o.status|lower }}">{{ o.status }}</span></td>
+              <td>{{ o.payment_mode }}<div class="small text-muted">{{ o.payment_status }}</div></td>
+              <td>₹{{ o.total_price }}</td>
+              <td>₹{{ o.tip }}</td>
+              <td>{{ o.discount_pct }}</td>
+              <td>{{ o.coupon if o.coupon else '-' }}</td>
+              <td class="text-nowrap">{{ o.time_of_order }}</td>
+              <td class="text-nowrap">{{ o.delivery_time if o.delivery_time else '-' }}</td>
+              <td>
+                <form method="post" action="/admin/order/update" class="d-flex gap-1">
+                  <input type="hidden" name="order_id" value="{{ o.order_id }}">
+                  <select class="form-select form-select-sm" name="driver_id" style="min-width:8rem" aria-label="Driver for {{ o.order_id }}">
+                    <option value="">No driver</option>
+                    {% for d in drivers %}
+                      <option value="{{ d.driver_id }}" {% if o.driver_id == d.driver_id %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <select class="form-select form-select-sm" name="status" style="min-width:9rem" aria-label="Status for {{ o.order_id }}">
+                    {% for s in ['PLACED','CONFIRMED','PREPARING','READY','OUT_FOR_DELIVERY','DELIVERED','CANCELLED'] %}
+                      <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-sm btn-main" type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="13" class="text-center text-muted py-4">No orders in the system yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ CUSTOMERS ============ -->
+    <div class="tab-pane fade" id="t-customers">
+      <div class="panel p-0 scroll">
+        <table class="table tbl mb-0 filterable">
+          <thead class="sticky-top bg-white"><tr><th>Customer ID</th><th>Name</th><th>Phone number</th><th></th></tr></thead>
+          <tbody>
+          {% for c in customers %}
+            <tr>
+              <td class="fw-bold">{{ c.customer_id }}</td><td>{{ c.name }}</td><td>{{ c.phone_number }}</td>
+              <td class="text-end">
+                <form method="post" action="/admin/customer/delete" onsubmit="return confirm('Delete this customer?')">
+                  <input type="hidden" name="customer_id" value="{{ c.customer_id }}">
+                  <button class="btn btn-sm btn-del" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">No customers yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ HOTELS ============ -->
+    <div class="tab-pane fade" id="t-hotels">
+      <div class="panel p-0 scroll">
+        <table class="table tbl mb-0 filterable">
+          <thead class="sticky-top bg-white"><tr><th>Hotel ID</th><th>Hotel name</th><th>City</th><th>PIN code</th><th>Opening</th><th>Closing</th><th></th></tr></thead>
+          <tbody>
+          {% for h in hotels %}
+            <tr>
+              <td class="fw-bold">{{ h.hotel_id }}</td><td>{{ h.hotel_name }}</td><td>{{ h.city }}</td>
+              <td>{{ h.pin_code }}</td><td>{{ h.opening_time }}</td><td>{{ h.closing_time }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-line" href="/hotel?hotel_id={{ h.hotel_id }}">Open</a>
+                <form method="post" action="/admin/hotel/delete" class="d-inline" onsubmit="return confirm('Delete this hotel and its menu?')">
+                  <input type="hidden" name="hotel_id" value="{{ h.hotel_id }}">
+                  <button class="btn btn-sm btn-del" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No hotels registered yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ DRIVERS ============ -->
+    <div class="tab-pane fade" id="t-drivers">
+      <div class="panel p-0 scroll">
+        <table class="table tbl mb-0 filterable">
+          <thead class="sticky-top bg-white"><tr><th>Driver ID</th><th>Name</th><th>Contact</th><th>Vehicle</th><th>Current city</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+          {% for d in drivers %}
+            <tr>
+              <td class="fw-bold">{{ d.driver_id }}</td><td>{{ d.name }}</td><td>{{ d.contact_no }}</td>
+              <td>{{ d.vehicle_no }}</td><td>{{ d.current_city }}</td>
+              <td><span class="st {{ d.status|lower }}">{{ d.status }}</span></td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-line" href="/driver?driver_id={{ d.driver_id }}">Open</a>
+                <form method="post" action="/admin/driver/delete" class="d-inline" onsubmit="return confirm('Delete this driver?')">
+                  <input type="hidden" name="driver_id" value="{{ d.driver_id }}">
+                  <button class="btn btn-sm btn-del" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No drivers registered yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ REVIEWS ============ -->
+    <div class="tab-pane fade" id="t-reviews">
+      <div class="panel p-0 scroll">
+        <table class="table tbl mb-0 filterable">
+          <thead class="sticky-top bg-white"><tr><th>Review ID</th><th>Order ID</th><th>For</th><th>Rating</th><th>Review</th><th></th></tr></thead>
+          <tbody>
+          {% for r in reviews %}
+            <tr>
+              <td class="fw-bold">{{ r.review_id }}</td><td>{{ r.order_id }}</td><td>{{ r.target_type }}</td>
+              <td><span class="rate">{{ r.rating }}/5</span></td>
+              <td>{{ r.text_review if r.text_review else '-' }}</td>
+              <td class="text-end">
+                <form method="post" action="/admin/review/delete" onsubmit="return confirm('Delete this review?')">
+                  <input type="hidden" name="review_id" value="{{ r.review_id }}">
+                  <button class="btn btn-sm btn-del" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No reviews yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Client-side filter for the visible tab's table
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.tab-pane.active table.filterable tbody tr').forEach(tr => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+  document.querySelectorAll('[data-bs-toggle="pill"]').forEach(b =>
+    b.addEventListener('shown.bs.tab', () => { document.getElementById('filter').value = ''; 
+      document.querySelectorAll('table.filterable tbody tr').forEach(tr => tr.style.display = ''); }));
+</script>
+</body>
+</html>

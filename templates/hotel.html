@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hotel Dashboard – FoodRush</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#14232b;--teal:#0f4c5c;--teal-soft:#dbe9ec;--turmeric:#e8a317;--chili:#c8372d;--leaf:#2f7d4f;--bg:#f3f6f7;--line:#d5dfe2;--muted:#5d6f77;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);}
+    h1,h2,h3,h4,h5,h6,.brand{font-family:'Bricolage Grotesque',sans-serif;}
+    .topbar{background:var(--ink);}
+    .topbar .brand{color:#fff;font-weight:800;font-size:1.3rem;text-decoration:none;}
+    .topbar .brand span{color:var(--turmeric);}
+    .topbar .who{color:#cfe3e8;font-size:.9rem;}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.4rem;}
+    .panel-title{font-weight:700;font-size:1.15rem;margin-bottom:1rem;}
+    .form-label{font-weight:700;font-size:.85rem;margin-bottom:.25rem;}
+    .form-control,.form-select{border-radius:8px;border-color:var(--line);}
+    .form-control:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
+    .btn-main{background:var(--teal);color:#fff;font-weight:700;border-radius:8px;border:0;padding:.5rem 1.1rem;}
+    .btn-main:hover{background:#0c3d4a;color:#fff;}
+    .btn-warn{background:var(--turmeric);color:var(--ink);font-weight:700;border-radius:8px;border:0;padding:.5rem 1.1rem;}
+    .btn-warn:hover{background:#cf9112;color:var(--ink);}
+    .btn-line{border:1.5px solid var(--line);font-weight:700;border-radius:8px;background:#fff;color:var(--ink);}
+    .btn-line:hover{border-color:var(--ink);}
+    .btn-del{border:1.5px solid #e9bcb8;color:var(--chili);font-weight:700;border-radius:8px;background:#fff;}
+    .btn-del:hover{background:var(--chili);color:#fff;}
+    .nav-tabs-lite{display:flex;gap:.4rem;flex-wrap:wrap;}
+    .nav-tabs-lite a{padding:.35rem .9rem;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-size:.9rem;font-weight:500;}
+    .nav-tabs-lite a:hover{border-color:var(--teal);color:var(--teal);}
+    .stat{background:#fff;border:1px solid var(--line);border-left:6px solid var(--turmeric);border-radius:12px;padding:1rem 1.2rem;}
+    .stat b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:1.7rem;}
+    .stat span{color:var(--muted);font-size:.85rem;}
+    .st{display:inline-block;padding:.15rem .65rem;border-radius:999px;font-size:.8rem;font-weight:700;background:var(--teal-soft);color:var(--teal);}
+    .st.delivered{background:#d9eee2;color:var(--leaf);}
+    .st.cancelled{background:#f6dcda;color:var(--chili);}
+    table.tbl th{font-size:.82rem;color:var(--muted);font-weight:700;white-space:nowrap;}
+    table.tbl td{vertical-align:middle;}
+    .phone-chip{display:inline-flex;align-items:center;gap:.4rem;background:var(--teal-soft);border-radius:999px;padding:.2rem .3rem .2rem .8rem;margin:0 .4rem .4rem 0;font-weight:500;}
+    .phone-chip button{border:0;background:#fff;border-radius:50%;width:1.5rem;height:1.5rem;line-height:1;color:var(--chili);font-weight:700;}
+    .review{border-bottom:1px dashed var(--line);padding:.7rem 0;}
+    .review:last-child{border-bottom:0;}
+    .rate{display:inline-block;background:var(--turmeric);border-radius:6px;padding:0 .5rem;font-weight:800;}
+  </style>
+</head>
+<body>
+
+<!--
+  Variables expected from Flask (render_template('hotel.html', ...)):
+  hotel           : row  -> hotel_id, hotel_name, opening_time, closing_time, city, street, geo_lat, geo_long, pin_code  (None = new hotel registration)
+  phones          : list -> phone_no
+  menu_items      : list -> item_id, name, category, price, availability
+  orders          : list -> order_id, customer_name, items, status, total_price, time_of_order, driver_name
+  reviews         : list -> review_id, order_id, rating, text_review   (only target_type = hotel)
+  stats           : dict -> total_orders, pending_orders, avg_rating, menu_count
+-->
+
+<nav class="topbar py-3">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="brand" href="/">Food<span>Rush</span></a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="who">{{ hotel.hotel_name ~ ' · ID ' ~ hotel.hotel_id if hotel else 'New hotel partner' }}</span>
+      <a href="/" class="btn btn-sm btn-line">Switch role</a>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4">
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}
+      <div class="alert alert-info alert-dismissible fade show" role="alert">{{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if hotel %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.total_orders if stats else 0 }}</b><span>Total orders</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.pending_orders if stats else 0 }}</b><span>Waiting for you</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.avg_rating if stats and stats.avg_rating else '-' }}</b><span>Average rating</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.menu_count if stats else 0 }}</b><span>Menu items</span></div></div>
+  </div>
+  <div class="nav-tabs-lite mb-4">
+    <a href="#orders">Orders</a><a href="#menu">Menu</a><a href="#profile">Hotel profile</a><a href="#reviews">Reviews</a>
+  </div>
+  {% endif %}
+
+  <!-- ============ ORDERS ============ -->
+  {% if hotel %}
+  <section id="orders" class="mb-5">
+    <div class="panel">
+      <h2 class="panel-title">Incoming orders</h2>
+      <div class="table-responsive">
+        <table class="table tbl mb-0">
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Driver</th><th>Ordered at</th><th>Status</th><th>Update status</th></tr></thead>
+          <tbody>
+          {% for o in orders %}
+            <tr>
+              <td class="fw-bold">{{ o.order_id }}</td>
+              <td>{{ o.customer_name }}</td>
+              <td class="small">{{ o.items }}</td>
+              <td>₹{{ o.total_price }}</td>
+              <td>{{ o.driver_name if o.driver_name else 'Not assigned' }}</td>
+              <td>{{ o.time_of_order }}</td>
+              <td><span class="st {{ o.status|lower }}">{{ o.status }}</span></td>
+              <td>
+                <form method="post" action="/hotel/order/status" class="d-flex gap-1">
+                  <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
+                  <input type="hidden" name="order_id" value="{{ o.order_id }}">
+                  <select class="form-select form-select-sm" name="status" aria-label="New status for {{ o.order_id }}">
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="PREPARING">Preparing</option>
+                    <option value="READY">Ready for pickup</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                  <button class="btn btn-sm btn-main" type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No orders yet. New orders will show up here.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MENU ============ -->
+  <section id="menu" class="mb-5">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="panel">
+          <h2 class="panel-title">Add menu item</h2>
+          <form method="post" action="/hotel/menu/add">
+            <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
+            <div class="mb-3"><label class="form-label" for="m_name">Item name</label>
+              <input type="text" class="form-control" id="m_name" name="name" maxlength="100" required></div>
+            <div class="mb-3"><label class="form-label" for="category">Category</label>
+              <select class="form-select" id="category" name="category" required>
+                <option value="" selected disabled>Select category</option>
+                <option value="Starter">Starter</option><option value="Main Course">Main Course</option>
+                <option value="Dessert">Dessert</option><option value="Beverage">Beverage</option>
+                <option value="Snack">Snack</option>
+              </select></div>
+            <div class="row g-2 mb-3">
+              <div class="col-6"><label class="form-label" for="m_price">Price (₹)</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="m_price" name="price" required></div>
+              <div class="col-6"><label class="form-label" for="m_av">Availability</label>
+                <select class="form-select" id="m_av" name="availability"><option value="1">Available</option><option value="0">Unavailable</option></select></div>
+            </div>
+            <button class="btn btn-warn w-100" type="submit">Add to menu</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="panel">
+          <h2 class="panel-title">Your menu</h2>
+          <div class="table-responsive">
+            <table class="table tbl mb-0">
+              <thead><tr><th>Item</th><th>Category</th><th>Price (₹)</th><th>Availability</th><th></th></tr></thead>
+              <tbody>
+              {% for item in menu_items %}
+                <tr>
+                  <td class="fw-bold">
+                    <form method="post" action="/hotel/menu/update" id="mf{{ item.item_id }}">
+                      <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
+                      <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                    </form>
+                    {{ item.name }}
+                  </td>
+                  <td>{{ item.category }}</td>
+                  <td><input form="mf{{ item.item_id }}" type="number" step="0.01" min="0" class="form-control form-control-sm" style="width:6.5rem" name="price" value="{{ item.price }}" aria-label="Price of {{ item.name }}"></td>
+                  <td><select form="mf{{ item.item_id }}" class="form-select form-select-sm" style="width:9rem" name="availability" aria-label="Availability of {{ item.name }}">
+                    <option value="1" {% if item.availability %}selected{% endif %}>Available</option>
+                    <option value="0" {% if not item.availability %}selected{% endif %}>Unavailable</option></select></td>
+                  <td class="text-end text-nowrap">
+                    <button form="mf{{ item.item_id }}" class="btn btn-sm btn-main" type="submit">Save</button>
+                    <button form="mf{{ item.item_id }}" class="btn btn-sm btn-del" type="submit" formaction="/hotel/menu/delete" formnovalidate onclick="return confirm('Delete this item?')">Delete</button>
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Your menu is empty. Add your first item.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ============ PROFILE ============ -->
+  <section id="profile" class="mb-5">
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="panel">
+          <h2 class="panel-title">{{ 'Hotel profile' if hotel else 'Register your hotel' }}</h2>
+          <form method="post" action="/hotel/profile" class="row g-3">
+            <div class="col-md-4"><label class="form-label" for="hotel_id">Hotel ID</label>
+              <input type="text" class="form-control" id="hotel_id" name="hotel_id" maxlength="50" value="{{ hotel.hotel_id if hotel else '' }}" {% if hotel %}readonly{% endif %} required></div>
+            <div class="col-md-8"><label class="form-label" for="hotel_name">Hotel name</label>
+              <input type="text" class="form-control" id="hotel_name" name="hotel_name" maxlength="100" value="{{ hotel.hotel_name if hotel else '' }}" required></div>
+            <div class="col-md-6"><label class="form-label" for="opening_time">Opening time</label>
+              <input type="time" class="form-control" id="opening_time" name="opening_time" value="{{ hotel.opening_time if hotel else '' }}" required></div>
+            <div class="col-md-6"><label class="form-label" for="closing_time">Closing time</label>
+              <input type="time" class="form-control" id="closing_time" name="closing_time" value="{{ hotel.closing_time if hotel else '' }}" required></div>
+            <div class="col-md-8"><label class="form-label" for="street">Street</label>
+              <input type="text" class="form-control" id="street" name="street" maxlength="100" value="{{ hotel.street if hotel else '' }}" required></div>
+            <div class="col-md-4"><label class="form-label" for="city">City</label>
+              <input type="text" class="form-control" id="city" name="city" maxlength="50" value="{{ hotel.city if hotel else '' }}" required></div>
+            <div class="col-md-4"><label class="form-label" for="pin_code">PIN code</label>
+              <input type="number" class="form-control" id="pin_code" name="pin_code" value="{{ hotel.pin_code if hotel else '' }}" required></div>
+            <div class="col-md-4"><label class="form-label" for="geo_lat">Latitude</label>
+              <input type="number" step="0.00000001" class="form-control" id="geo_lat" name="geo_lat" value="{{ hotel.geo_lat if hotel else '' }}"></div>
+            <div class="col-md-4"><label class="form-label" for="geo_long">Longitude</label>
+              <input type="number" step="0.00000001" class="form-control" id="geo_long" name="geo_long" value="{{ hotel.geo_long if hotel else '' }}"></div>
+            <div class="col-12"><button class="btn btn-main" type="submit">{{ 'Update hotel' if hotel else 'Register hotel' }}</button></div>
+          </form>
+        </div>
+      </div>
+
+      {% if hotel %}
+      <div class="col-lg-4">
+        <div class="panel h-100">
+          <h2 class="panel-title">Contact numbers</h2>
+          <div class="mb-3">
+            {% for p in phones %}
+              <form method="post" action="/hotel/phone/delete" class="d-inline">
+                <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
+                <input type="hidden" name="phone_no" value="{{ p.phone_no }}">
+                <span class="phone-chip">{{ p.phone_no }}<button type="submit" aria-label="Remove {{ p.phone_no }}">×</button></span>
+              </form>
+            {% else %}
+              <p class="text-muted small">No phone numbers added.</p>
+            {% endfor %}
+          </div>
+          <form method="post" action="/hotel/phone">
+            <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
+            <label class="form-label" for="phone_no">Add phone number</label>
+            <div class="d-flex gap-2">
+              <input type="tel" class="form-control" id="phone_no" name="phone_no" maxlength="15" required>
+              <button class="btn btn-main" type="submit">Add</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ============ REVIEWS ============ -->
+  {% if hotel %}
+  <section id="reviews" class="mb-4">
+    <div class="panel">
+      <h2 class="panel-title">Customer reviews</h2>
+      {% for r in reviews %}
+        <div class="review">
+          <span class="rate">{{ r.rating }}/5</span>
+          <span class="small text-muted ms-2">Order {{ r.order_id }}</span>
+          <p class="mb-0 mt-1">{{ r.text_review if r.text_review else 'No written review.' }}</p>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No reviews yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Dashboard – FoodRush</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#14232b;--teal:#0f4c5c;--teal-soft:#dbe9ec;--turmeric:#e8a317;--chili:#c8372d;--leaf:#2f7d4f;--bg:#f3f6f7;--line:#d5dfe2;--muted:#5d6f77;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);}
+    h1,h2,h3,h4,h5,h6,.brand{font-family:'Bricolage Grotesque',sans-serif;}
+    .topbar{background:var(--ink);}
+    .topbar .brand{color:#fff;font-weight:800;font-size:1.3rem;text-decoration:none;}
+    .topbar .brand span{color:var(--turmeric);}
+    .topbar .who{color:#cfe3e8;font-size:.9rem;}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.4rem;}
+    .panel-title{font-weight:700;font-size:1.15rem;margin-bottom:1rem;}
+    .form-label{font-weight:700;font-size:.85rem;margin-bottom:.25rem;}
+    .form-control,.form-select{border-radius:8px;border-color:var(--line);}
+    .form-control:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
+    .btn-main{background:var(--teal);color:#fff;font-weight:700;border-radius:8px;border:0;padding:.5rem 1.1rem;}
+    .btn-main:hover{background:#0c3d4a;color:#fff;}
+    .btn-go{background:var(--leaf);color:#fff;font-weight:700;border-radius:8px;border:0;padding:.5rem 1.1rem;}
+    .btn-go:hover{background:#256640;color:#fff;}
+    .btn-line{border:1.5px solid var(--line);font-weight:700;border-radius:8px;background:#fff;color:var(--ink);}
+    .btn-line:hover{border-color:var(--ink);}
+    .nav-tabs-lite{display:flex;gap:.4rem;flex-wrap:wrap;}
+    .nav-tabs-lite a{padding:.35rem .9rem;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-size:.9rem;font-weight:500;}
+    .nav-tabs-lite a:hover{border-color:var(--teal);color:var(--teal);}
+    .stat{background:#fff;border:1px solid var(--line);border-left:6px solid var(--leaf);border-radius:12px;padding:1rem 1.2rem;}
+    .stat b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:1.7rem;}
+    .stat span{color:var(--muted);font-size:.85rem;}
+    .st{display:inline-block;padding:.15rem .65rem;border-radius:999px;font-size:.8rem;font-weight:700;background:var(--teal-soft);color:var(--teal);}
+    .st.delivered,.st.available{background:#d9eee2;color:var(--leaf);}
+    .st.cancelled,.st.offline{background:#f6dcda;color:var(--chili);}
+    .st.busy{background:#fbecc8;color:#8a6100;}
+    table.tbl th{font-size:.82rem;color:var(--muted);font-weight:700;white-space:nowrap;}
+    table.tbl td{vertical-align:middle;}
+    .review{border-bottom:1px dashed var(--line);padding:.7rem 0;}
+    .review:last-child{border-bottom:0;}
+    .rate{display:inline-block;background:var(--turmeric);border-radius:6px;padding:0 .5rem;font-weight:800;}
+  </style>
+</head>
+<body>
+
+<!--
+  Variables expected from Flask (render_template('driver.html', ...)):
+  driver            : row  -> driver_id, name, contact_no, vehicle_no, status, curr_lat, curr_long, current_city  (None = new driver registration)
+  my_orders         : list -> order_id, hotel_name, hotel_street, hotel_city, customer_name, house, street, city, status, total_price, tip, payment_mode
+  open_orders       : list -> order_id, hotel_name, hotel_street, hotel_city, city, total_price, tip   (status READY, driver_id IS NULL)
+  history           : list -> order_id, hotel_name, delivery_time, tip
+  reviews           : list -> review_id, order_id, rating, text_review   (target_type = driver)
+  stats             : dict -> completed, active, total_tips, avg_rating
+-->
+
+<nav class="topbar py-3">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="brand" href="/">Food<span>Rush</span></a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="who">{{ driver.name ~ ' · ID ' ~ driver.driver_id if driver else 'New delivery partner' }}</span>
+      <a href="/" class="btn btn-sm btn-line">Switch role</a>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4">
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}
+      <div class="alert alert-info alert-dismissible fade show" role="alert">{{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if driver %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.completed if stats else 0 }}</b><span>Deliveries completed</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.active if stats else 0 }}</b><span>Active deliveries</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>₹{{ stats.total_tips if stats and stats.total_tips else 0 }}</b><span>Tips earned</span></div></div>
+    <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.avg_rating if stats and stats.avg_rating else '-' }}</b><span>Average rating</span></div></div>
+  </div>
+  <div class="nav-tabs-lite mb-4">
+    <a href="#status">Status &amp; location</a><a href="#deliveries">My deliveries</a><a href="#open">Open orders</a><a href="#profile">Profile</a><a href="#reviews">Reviews</a>
+  </div>
+
+  <!-- ============ STATUS & LOCATION ============ -->
+  <section id="status" class="row g-4 mb-5">
+    <div class="col-lg-4">
+      <div class="panel h-100">
+        <h2 class="panel-title">Availability</h2>
+        <p>Current status: <span class="st {{ driver.status|lower }}">{{ driver.status }}</span></p>
+        <form method="post" action="/driver/status">
+          <input type="hidden" name="driver_id" value="{{ driver.driver_id }}">
+          <label class="form-label" for="status">Change status</label>
+          <select class="form-select mb-3" id="status" name="status">
+            <option value="AVAILABLE" {% if driver.status == 'AVAILABLE' %}selected{% endif %}>Available</option>
+            <option value="BUSY" {% if driver.status == 'BUSY' %}selected{% endif %}>Busy</option>
+            <option value="OFFLINE" {% if driver.status == 'OFFLINE' %}selected{% endif %}>Offline</option>
+          </select>
+          <button class="btn btn-main" type="submit">Update status</button>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="panel h-100">
+        <h2 class="panel-title">Current location</h2>
+        <form method="post" action="/driver/location" class="row g-3">
+          <input type="hidden" name="driver_id" value="{{ driver.driver_id }}">
+          <div class="col-md-4"><label class="form-label" for="current_city">City</label>
+            <input type="text" class="form-control" id="current_city" name="current_city" maxlength="50" value="{{ driver.current_city or '' }}" required></div>
+          <div class="col-md-4"><label class="form-label" for="curr_lat">Latitude</label>
+            <input type="number" step="0.00000001" class="form-control" id="curr_lat" name="curr_lat" value="{{ driver.curr_lat if driver.curr_lat is not none else '' }}"></div>
+          <div class="col-md-4"><label class="form-label" for="curr_long">Longitude</label>
+            <input type="number" step="0.00000001" class="form-control" id="curr_long" name="curr_long" value="{{ driver.curr_long if driver.curr_long is not none else '' }}"></div>
+          <div class="col-12 d-flex gap-2 flex-wrap">
+            <button class="btn btn-main" type="submit">Save location</button>
+            <button class="btn btn-line" type="button" id="geoBtn">Use my device location</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MY DELIVERIES ============ -->
+  <section id="deliveries" class="mb-5">
+    <div class="panel">
+      <h2 class="panel-title">My deliveries</h2>
+      <div class="table-responsive">
+        <table class="table tbl mb-0">
+          <thead><tr><th>Order ID</th><th>Pickup from</th><th>Deliver to</th><th>Customer</th><th>Payment</th><th>Total</th><th>Tip</th><th>Status</th><th>Update</th></tr></thead>
+          <tbody>
+          {% for o in my_orders %}
+            <tr>
+              <td class="fw-bold">{{ o.order_id }}</td>
+              <td>{{ o.hotel_name }}<div class="small text-muted">{{ o.hotel_street }}, {{ o.hotel_city }}</div></td>
+              <td class="small">{{ o.house }}, {{ o.street }}, {{ o.city }}</td>
+              <td>{{ o.customer_name }}</td>
+              <td>{{ o.payment_mode }}</td>
+              <td>₹{{ o.total_price }}</td>
+              <td>₹{{ o.tip }}</td>
+              <td><span class="st {{ o.status|lower }}">{{ o.status }}</span></td>
+              <td>
+                {% if o.status != 'DELIVERED' and o.status != 'CANCELLED' %}
+                <form method="post" action="/driver/order/status" class="d-flex gap-1">
+                  <input type="hidden" name="driver_id" value="{{ driver.driver_id }}">
+                  <input type="hidden" name="order_id" value="{{ o.order_id }}">
+                  <select class="form-select form-select-sm" name="status" aria-label="New status for {{ o.order_id }}">
+                    <option value="OUT_FOR_DELIVERY">Picked up</option>
+                    <option value="DELIVERED">Delivered</option>
+                  </select>
+                  <button class="btn btn-sm btn-go" type="submit">Save</button>
+                </form>
+                {% else %}<span class="text-muted small">Closed</span>{% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No deliveries assigned. Accept one from open orders.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OPEN ORDERS ============ -->
+  <section id="open" class="mb-5">
+    <div class="panel">
+      <h2 class="panel-title">Open orders near you</h2>
+      <div class="table-responsive">
+        <table class="table tbl mb-0">
+          <thead><tr><th>Order ID</th><th>Pickup from</th><th>Drop city</th><th>Total</th><th>Tip</th><th></th></tr></thead>
+          <tbody>
+          {% for o in open_orders %}
+            <tr>
+              <td class="fw-bold">{{ o.order_id }}</td>
+              <td>{{ o.hotel_name }}<div class="small text-muted">{{ o.hotel_street }}, {{ o.hotel_city }}</div></td>
+              <td>{{ o.city }}</td>
+              <td>₹{{ o.total_price }}</td>
+              <td>₹{{ o.tip }}</td>
+              <td class="text-end">
+                <form method="post" action="/driver/accept">
+                  <input type="hidden" name="driver_id" value="{{ driver.driver_id }}">
+                  <input type="hidden" name="order_id" value="{{ o.order_id }}">
+                  <button class="btn btn-sm btn-go" type="submit" {% if driver.status != 'AVAILABLE' %}disabled title="Set your status to Available first"{% endif %}>Accept delivery</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No open orders right now.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ============ PROFILE ============ -->
+  <section id="profile" class="mb-5">
+    <div class="panel">
+      <h2 class="panel-title">{{ 'Driver profile' if driver else 'Register as a delivery partner' }}</h2>
+      <form method="post" action="/driver/profile" class="row g-3">
+        <div class="col-md-3"><label class="form-label" for="driver_id">Driver ID</label>
+          <input type="text" class="form-control" id="driver_id" name="driver_id" maxlength="50" value="{{ driver.driver_id if driver else '' }}" {% if driver %}readonly{% endif %} required></div>
+        <div class="col-md-3"><label class="form-label" for="name">Name</label>
+          <input type="text" class="form-control" id="name" name="name" maxlength="100" value="{{ driver.name if driver else '' }}" required></div>
+        <div class="col-md-3"><label class="form-label" for="contact_no">Contact number</label>
+          <input type="tel" class="form-control" id="contact_no" name="contact_no" maxlength="15" value="{{ driver.contact_no if driver else '' }}" required></div>
+        <div class="col-md-3"><label class="form-label" for="vehicle_no">Vehicle number</label>
+          <input type="text" class="form-control" id="vehicle_no" name="vehicle_no" maxlength="20" value="{{ driver.vehicle_no if driver else '' }}" required></div>
+        {% if not driver %}
+          <div class="col-md-4"><label class="form-label" for="current_city_new">City</label>
+            <input type="text" class="form-control" id="current_city_new" name="current_city" maxlength="50" required></div>
+        {% endif %}
+        <div class="col-12"><button class="btn btn-main" type="submit">{{ 'Update profile' if driver else 'Register' }}</button></div>
+      </form>
+    </div>
+  </section>
+
+  {% if driver %}
+  <!-- ============ HISTORY & REVIEWS ============ -->
+  <section id="reviews" class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="panel h-100">
+        <h2 class="panel-title">Delivery history</h2>
+        <div class="table-responsive">
+          <table class="table tbl mb-0">
+            <thead><tr><th>Order ID</th><th>Hotel</th><th>Delivered at</th><th>Tip</th></tr></thead>
+            <tbody>
+            {% for h in history %}
+              <tr><td class="fw-bold">{{ h.order_id }}</td><td>{{ h.hotel_name }}</td><td>{{ h.delivery_time }}</td><td>₹{{ h.tip }}</td></tr>
+            {% else %}
+              <tr><td colspan="4" class="text-center text-muted py-3">No completed deliveries yet.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="panel h-100">
+        <h2 class="panel-title">Customer reviews</h2>
+        {% for r in reviews %}
+          <div class="review">
+            <span class="rate">{{ r.rating }}/5</span><span class="small text-muted ms-2">Order {{ r.order_id }}</span>
+            <p class="mb-0 mt-1">{{ r.text_review if r.text_review else 'No written review.' }}</p>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No reviews yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Fill latitude/longitude from the browser's location (optional helper)
+  const geoBtn = document.getElementById('geoBtn');
+  if (geoBtn) geoBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) return alert('Location is not supported in this browser.');
+    navigator.geolocation.getCurrentPosition(p => {
+      document.getElementById('curr_lat').value = p.coords.latitude.toFixed(8);
+      document.getElementById('curr_long').value = p.coords.longitude.toFixed(8);
+    }, () => alert('Could not read your location. Enter it manually.'));
+  });
+</script>
+</body>
+</html>
