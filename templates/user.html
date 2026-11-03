@@ -95,6 +95,7 @@
       {% else %}
         <span class="who">New customer</span>
       {% endif %}
+      {% if customer %}<a href="/user/register?customer_id={{ customer.customer_id }}" class="btn btn-sm btn-line">Edit profile &amp; addresses</a>{% endif %}
       <a href="/" class="btn btn-sm btn-line">Switch role</a>
     </div>
   </div>
@@ -113,85 +114,10 @@
   {% endwith %}
 
   <div class="nav-tabs-lite mb-4">
-    <a href="#profile">Profile &amp; address</a>
     <a href="#hotels">Hotels &amp; menu</a>
     <a href="#orders">My orders</a>
     <a href="#review">Review</a>
   </div>
-
-  <!-- ===================== PROFILE & ADDRESS ===================== -->
-  <section id="profile" class="row g-4 mb-5">
-    <div class="col-lg-5">
-      <div class="panel h-100">
-        <h2 class="panel-title">Your profile</h2>
-        <form method="post" action="/user/profile">
-          <input type="hidden" name="customer_id" value="{{ customer.customer_id if customer else '' }}">
-          <div class="mb-3">
-            <label class="form-label" for="name">Name</label>
-            <input type="text" class="form-control" id="name" name="name" maxlength="100"
-                   value="{{ customer.name if customer else '' }}" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="phone_number">Phone number</label>
-            <input type="number" class="form-control" id="phone_number" name="phone_number"
-                   value="{{ customer.phone_number if customer else '' }}" placeholder="10-digit mobile number" required>
-          </div>
-          <button class="btn btn-main" type="submit">{{ 'Update profile' if customer else 'Create profile' }}</button>
-        </form>
-      </div>
-    </div>
-
-    <div class="col-lg-7">
-      <div class="panel h-100">
-        <h2 class="panel-title">Delivery address</h2>
-
-        {% if addresses %}
-          <p class="small text-muted mb-2">Saved addresses are listed in the checkout form. Add another one below.</p>
-          <ul class="list-group mb-3">
-            {% for a in addresses %}
-              <li class="list-group-item">
-                <strong>{{ a.house }}, {{ a.street }}</strong>
-                <span class="text-muted">· {{ a.city }} – {{ a.pin_code }}</span>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted">No saved address yet. Add one to place an order.</p>
-        {% endif %}
-
-        <form method="post" action="/user/address" class="row g-2">
-          <input type="hidden" name="customer_id" value="{{ customer.customer_id if customer else '' }}">
-          <div class="col-md-4">
-            <label class="form-label" for="house">House</label>
-            <input type="text" class="form-control" id="house" name="house" maxlength="50" required>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label" for="street">Street</label>
-            <input type="text" class="form-control" id="street" name="street" maxlength="100" required>
-          </div>
-          <div class="col-md-5">
-            <label class="form-label" for="city">City</label>
-            <input type="text" class="form-control" id="city" name="city" maxlength="50" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label" for="pin_code">PIN code</label>
-            <input type="number" class="form-control" id="pin_code" name="pin_code" required>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label" for="geo_lat">Latitude</label>
-            <input type="number" step="0.00000001" class="form-control" id="geo_lat" name="geo_lat">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label" for="geo_long">Longitude</label>
-            <input type="number" step="0.00000001" class="form-control" id="geo_long" name="geo_long">
-          </div>
-          <div class="col-12 mt-2">
-            <button class="btn btn-main" type="submit">Save address</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </section>
 
   <!-- ===================== HOTELS ===================== -->
   <section id="hotels" class="mb-5">
@@ -274,6 +200,9 @@
                 {% endfor %}
               </select>
             </div>
+            {% if not addresses %}
+              <div class="small text-danger mb-3">Koi saved address nahi hai. <a href="/user/register?customer_id={{ customer.customer_id if customer else '' }}#addresses">Profile me address add karo</a>.</div>
+            {% endif %}
             <div class="row g-2 mb-3">
               <div class="col-6">
                 <label class="form-label" for="coupon">Coupon code</label>
@@ -340,6 +269,7 @@
       <h2 class="panel-title">Review a delivered order</h2>
       {% if delivered_orders %}
         <form method="post" action="/user/review" class="row g-3">
+          <input type="hidden" name="customer_id" value="{{ customer.customer_id if customer else '' }}">
           <div class="col-md-6">
             <label class="form-label" for="order_id">Order</label>
             <select class="form-select" id="order_id" name="order_id" required>

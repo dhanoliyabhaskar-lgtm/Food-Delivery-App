@@ -6,9 +6,12 @@ Folder structure:
     ├── app.py
     └── templates/
         ├── index.html
-        ├── user.html
-        ├── hotel.html
-        ├── driver.html
+        ├── user_register.html     (customer register / profile update + addresses)
+        ├── user.html              (customer dashboard)
+        ├── hotel_register.html    (hotel register / profile update + phones)
+        ├── hotel.html             (hotel dashboard)
+        ├── driver_register.html   (driver register / profile update)
+        ├── driver.html            (driver dashboard)
         └── admin.html
 
 NOTE:
@@ -18,13 +21,42 @@ NOTE:
 - Abhi placeholders (None / [] / {}) hain, isliye bina DB ke bhi saare pages khul jayenge.
 """
 
+import hmac
+import os
+import secrets
+import time
 import uuid
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, session
+
+# .env file se PASSWORD / SECRET_KEY padhne ke liye:  pip install python-dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("python-dotenv install nahi hai, .env file load nahi hogi (pip install python-dotenv)")
 
 app = Flask(__name__)
-app.secret_key = "change-this-secret-key"  # flash() ke liye zaroori
+# Session cookie (admin login + flash messages) isi key se sign hoti hai.
+# .env me SECRET_KEY daal do. Na ho to har start par random key banegi (restart par admin logout ho jayega).
+app.secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
+
+# DB connect karne ke baad isse True kar dena.
+# True hone par: agar login me diya gaya ID database me nahi mila to user ko seedha
+# register page par bhej diya jayega. False me pages bina DB ke bhi khulte hain (testing ke liye).
+DB_CONNECTED = False
+
+# ---------------------------------------------------------------------------
+# DUMMY-DATA: Jab tak database connect nahi hai, ye True rehne do. App dummy_data.py ke
+# in-memory data se chalega. DB connect karne ke baad:
+#   1) ise False kar do (ya saare "DUMMY-DATA" blocks hata do) aur dummy_data.py delete kar do.
+#   2) DB_CONNECTED ko True kar do.
+# Dummy login IDs: Customer 1, 2 | Hotel H001, H002, H003 | Driver D001, D002, D003 | Admin: koi ID nahi
+# Dummy coupon: SAVE10
+# ---------------------------------------------------------------------------
+USE_DUMMY_DATA = True
+import dummy_data as dummy  # DUMMY-DATA: DB lagane ke baad ye import hata dena
 
 # ---------------------------------------------------------------------------
 # DB-TODO [0]: Yaha MySQL connection setup karo (connector / pool / helper functions).
@@ -99,6 +131,10 @@ def user_dashboard():
     customer_id = to_int(request.args.get("customer_id"))
     hotel_id = clean(request.args.get("hotel_id"))
 
+    if not customer_id:
+        flash("Pehle Customer ID daalo ya naya account banao.")
+        return redirect("/")
+
     customer = None          # dict: customer_id, name, phone_number
     addresses = []           # list of dict: address_id, house, street, city, geo_lat, geo_long, pin_code
     hotels = []              # list of dict: hotel_id, hotel_name, city, street, opening_time, closing_time
@@ -132,6 +168,16 @@ def user_dashboard():
     #   (aur jinka review abhi nahi diya gaya, ye optional hai). Join hotel + driver (LEFT JOIN).
     #   -> delivered_orders = [{order_id, hotel_name, driver_name}, ...]
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA: customer, addresses, hotels, menu, orders sab dummy_data.py se aa rahe hain
+        d = dummy.user_dashboard(customer_id, hotel_id)
+        customer, addresses, hotels = d["customer"], d["addresses"], d["hotels"]
+        selected_hotel, menu_items = d["selected_hotel"], d["menu_items"]
+        active_orders, delivered_orders = d["active_orders"], d["delivered_orders"]
+
+    if (DB_CONNECTED or USE_DUMMY_DATA) and customer is None:  # DUMMY-DATA: sirf `DB_CONNECTED and` rakhna
+        flash("Ye Customer ID nahi mila. Naya account banao.")
+        return redirect("/user/register")
+
     return render_template(
         "user.html",
         customer=customer,
@@ -144,6 +190,29 @@ def user_dashboard():
     )
 
 
+def redirect_user_profile(customer_id):
+    """Register / profile page par wapas bhejta hai (customer_id ke saath = edit mode)."""
+    return redirect(f"/user/register?customer_id={customer_id or ''}")
+
+
+@app.route("/user/register")
+def user_register():
+    """Naya account banane ya profile update karne ka page (user_register.html).
+    customer_id nahi diya -> new registration form. customer_id diya -> edit mode + addresses."""
+    customer_id = to_int(request.args.get("customer_id"))
+
+    customer = None    # dict: customer_id, name, phone_number
+    addresses = []     # list of dict: address_id, house, street, city, geo_lat, geo_long, pin_code
+
+    if customer_id:
+        # DB-TODO [1b]: `customer` table se customer_id ki row lo -> customer dict. Na mile to None.
+        # DB-TODO [2b]: `address` table se us customer ke saare addresses -> addresses list.
+        if USE_DUMMY_DATA:  # DUMMY-DATA: customer + addresses dummy_data.py se
+            customer, addresses = dummy.user_register(customer_id)
+
+    return render_template("user_register.html", customer=customer, addresses=addresses)
+
+
 @app.route("/user/profile", methods=["POST"])
 def user_profile():
     customer_id = to_int(request.form.get("customer_id"))
@@ -152,7 +221,14 @@ def user_profile():
 
     if not name or phone_number is None:
         flash("Name aur valid phone number zaroori hai.")
-        return redirect_user(customer_id)
+        return redirect_user_profile(customer_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA: profile memory me save hoti hai (naya customer_id dummy me ban jata hai)
+        is_new = not customer_id
+        customer_id = dummy.save_customer(customer_id, name, phone_number)
+        flash(f"Account ban gaya! Aapka Customer ID: {customer_id}. Login ke liye ise yaad rakho." if is_new
+              else "Profile update ho gayi.")
+        return redirect_user_profile(customer_id)
 
     if customer_id:
         # DB-TODO [7]: UPDATE customer SET name, phone_number WHERE customer_id
@@ -161,11 +237,11 @@ def user_profile():
     else:
         # DB-TODO [8]: INSERT into customer (name, phone_number).
         #   customer_id AUTO_INCREMENT hai to naya id (lastrowid) customer_id variable me daalo,
-        #   warna khud generate karo.
+        #   warna khud generate karo. (Ye id neeche flash me user ko dikhayi jati hai.)
         #   inputs: name, phone_number
-        flash("Profile ban gayi.")
+        flash(f"Account ban gaya! Aapka Customer ID: {customer_id}. Login ke liye ise yaad rakho.")
 
-    return redirect_user(customer_id)
+    return redirect_user_profile(customer_id)
 
 
 @app.route("/user/address", methods=["POST"])
@@ -180,17 +256,22 @@ def user_address():
 
     if not customer_id:
         flash("Pehle profile banao, phir address add karo.")
-        return redirect_user(None)
+        return redirect("/user/register")
     if not (house and street and city and pin_code):
         flash("House, street, city aur PIN code bharna zaroori hai.")
-        return redirect_user(customer_id)
+        return redirect_user_profile(customer_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA: address memory me save
+        dummy.add_address(customer_id, house, street, city, pin_code, geo_lat, geo_long)
+        flash("Address save ho gaya.")
+        return redirect_user_profile(customer_id)
 
     # DB-TODO [9]: INSERT into address (customer_id, address_id, house, street, city, geo_lat, geo_long, pin_code)
     #   address_id composite key ka hissa hai -> us customer ke liye next id = MAX(address_id)+1 (ya 1)
     #   inputs: customer_id, house, street, city, pin_code, geo_lat, geo_long
 
     flash("Address save ho gaya.")
-    return redirect_user(customer_id)
+    return redirect_user_profile(customer_id)
 
 
 @app.route("/user/order", methods=["POST"])
@@ -227,6 +308,11 @@ def user_order():
     if not lines:
         flash("Cart khali hai. Kam se kam ek dish ki quantity daalo.")
         return redirect_user(customer_id, hotel_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA: price dummy menu se, coupon SAVE10 = 10%, order memory me save
+        result = dummy.place_order(customer_id, hotel_id, address_id, coupon, tip, payment_mode, lines)
+        flash(result["message"])
+        return redirect_user(customer_id, None if result["ok"] else hotel_id)
 
     # DB-TODO [10]: Har line ke liye `menu_item` se (hotel_id, item_id) ki price aur availability lo.
     #   - Agar item available nahi hai ya exist nahi karta -> flash error + redirect_user(...) return karo.
@@ -275,6 +361,10 @@ def user_review():
         flash("Order, review type aur 1-5 rating select karo.")
         return redirect_user(customer_id)
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA: review memory me save
+        flash(dummy.add_review(order_id, target_type, rating, text_review))
+        return redirect_user(customer_id)
+
     # DB-TODO [14]: Verify karo ki order_id ka status 'DELIVERED' hai (aur customer_id wahi hai).
         #   Driver review ho aur order me driver_id NULL ho to error do.
 
@@ -294,46 +384,81 @@ def user_review():
 # ===========================================================================
 
 def redirect_hotel(hotel_id):
+    """Hotel dashboard par bhejta hai."""
     return redirect(f"/hotel?hotel_id={hotel_id or ''}")
+
+
+def redirect_hotel_profile(hotel_id):
+    """Hotel register / profile page par bhejta hai (hotel_id ke saath = edit mode)."""
+    return redirect(f"/hotel/register?hotel_id={hotel_id or ''}")
 
 
 @app.route("/hotel")
 def hotel_dashboard():
     hotel_id = clean(request.args.get("hotel_id"))
 
-    hotel = None        # dict: hotel_id, hotel_name, opening_time, closing_time, city, street, geo_lat, geo_long, pin_code
-    phones = []         # list of dict: phone_no
+    if not hotel_id:
+        flash("Pehle Hotel ID daalo ya naya hotel register karo.")
+        return redirect("/")
+
+    hotel = None        # dict: hotel_id, hotel_name (header ke liye)
     menu_items = []     # list of dict: item_id, name, category, price, availability
-    orders = []         # list of dict: order_id, customer_name, items, status, total_price, time_of_order, driver_name
+    orders = []         # list of dict: order_id, customer_name, status, total_price, time_of_order, driver_name,
+                        #               order_items = list of dict (item_name, quantity, remarks)
     reviews = []        # list of dict: review_id, order_id, rating, text_review
     stats = {}          # dict: total_orders, pending_orders, avg_rating, menu_count
 
-    if hotel_id:
-        # DB-TODO [17]: `hotel` table se hotel_id ki row lo -> hotel dict (upar ke keys)
-        #   Na mile to hotel None rehne do (page registration form dikhayega).
+    # DB-TODO [17]: `hotel` table se hotel_id ki row lo -> hotel dict. Na mile to hotel None rehne do.
 
-        # DB-TODO [18]: `hotel_phone` se hotel_id ke saare phone_no -> phones = [{phone_no}, ...]
+    # DB-TODO [19]: `menu_item` se hotel_id ke saare items
+    #   -> menu_items = [{item_id, name, category, price, availability}, ...]
 
-        # DB-TODO [19]: `menu_item` se hotel_id ke saare items
-        #   -> menu_items = [{item_id, name, category, price, availability}, ...]
+    # DB-TODO [20]: Is hotel ke orders (latest pehle). Join: food_order + customer (name as customer_name)
+    #   + driver (name as driver_name, LEFT JOIN).
+    #   Har order ke liye uske order_item rows bhi chahiye (order_item JOIN menu_item on hotel_id + item_id):
+    #   order["order_items"] = [{"item_name": menu_item.name, "quantity": order_item.quantity,
+    #                      "remarks": order_item.remarks}, ...]
+    #   (Hotel ko items AUR remarks dono dikhte hain, isliye ye zaroori hai.)
+    #   -> orders = [{order_id, customer_name, status, total_price, time_of_order, driver_name, order_items}, ...]
 
-        # DB-TODO [20]: Is hotel ke orders (latest pehle). Join chahiye:
-        #   food_order + customer (name as customer_name) + driver (name as driver_name, LEFT JOIN)
-        #   + order_item/menu_item se items ki summary string, jaise "2 x Paneer Tikka, 1 x Naan"
-        #   -> orders = [{order_id, customer_name, items, status, total_price, time_of_order, driver_name}, ...]
+    # DB-TODO [21]: `review` se woh reviews jinka target_type='HOTEL' aur order isi hotel ka ho
+    #   -> reviews = [{review_id, order_id, rating, text_review}, ...]
 
-        # DB-TODO [21]: `review` se woh reviews jinka target_type='HOTEL' aur order isi hotel ka ho
-        #   -> reviews = [{review_id, order_id, rating, text_review}, ...]
+    # DB-TODO [22]: Stats calculate karo (COUNT / AVG queries):
+    #   stats = {"total_orders": ..., "pending_orders": (status PLACED), "avg_rating": ..., "menu_count": ...}
 
-        # DB-TODO [22]: Stats calculate karo (COUNT / AVG queries):
-        #   stats = {"total_orders": ..., "pending_orders": (status PLACED), "avg_rating": ..., "menu_count": ...}
-        pass
+    if USE_DUMMY_DATA:  # DUMMY-DATA: hotel, menu, orders, reviews, stats dummy_data.py se
+        d = dummy.hotel_dashboard(hotel_id)
+        hotel, menu_items, orders = d["hotel"], d["menu_items"], d["orders"]
+        reviews, stats = d["reviews"], d["stats"]
+
+    if (DB_CONNECTED or USE_DUMMY_DATA) and hotel is None:  # DUMMY-DATA: sirf `DB_CONNECTED and` rakhna
+        flash("Ye Hotel ID nahi mila. Naya hotel register karo.")
+        return redirect("/hotel/register")
 
     return render_template(
         "hotel.html",
-        hotel=hotel, phones=phones, menu_items=menu_items,
+        hotel=hotel, menu_items=menu_items,
         orders=orders, reviews=reviews, stats=stats,
     )
+
+
+@app.route("/hotel/register")
+def hotel_register():
+    """Hotel register ya profile update page (hotel_register.html).
+    hotel_id nahi diya -> new registration. hotel_id diya -> edit mode + phone numbers."""
+    hotel_id = clean(request.args.get("hotel_id"))
+
+    hotel = None     # dict: hotel_id, hotel_name, opening_time, closing_time, city, street, geo_lat, geo_long, pin_code
+    phones = []      # list of dict: phone_no
+
+    if hotel_id:
+        # DB-TODO [17b]: `hotel` table se hotel_id ki row lo -> hotel dict (upar ke saare keys). Na mile to None.
+        # DB-TODO [18b]: `hotel_phone` se hotel_id ke saare phone_no -> phones = [{phone_no}, ...]
+        if USE_DUMMY_DATA:  # DUMMY-DATA: hotel + phones dummy_data.py se
+            hotel, phones = dummy.hotel_register(hotel_id)
+
+    return render_template("hotel_register.html", hotel=hotel, phones=phones)
 
 
 @app.route("/hotel/profile", methods=["POST"])
@@ -348,19 +473,39 @@ def hotel_profile():
     geo_lat = to_float(request.form.get("geo_lat"))
     geo_long = to_float(request.form.get("geo_long"))
 
-    if not (hotel_id and hotel_name and opening_time and closing_time and street and city and pin_code):
+    # Form me hotel_id sirf EDIT mode me (hidden field se) aata hai.
+    # Naye registration me hotel_id None hota hai aur server khud banata hai.
+    is_new = hotel_id is None
+
+    if not (hotel_name and opening_time and closing_time and street and city and pin_code):
         flash("Saari required hotel details bharo.")
-        return redirect_hotel(hotel_id)
+        return redirect_hotel_profile(hotel_id)
 
-    # DB-TODO [23]: Check karo ki hotel_id pehle se exist karta hai ya nahi.
-    #   - Exist karta hai -> UPDATE hotel SET hotel_name, opening_time, closing_time, city, street,
-    #                        geo_lat, geo_long, pin_code WHERE hotel_id
-    #   - Nahi karta      -> INSERT into hotel (hotel_id, hotel_name, opening_time, closing_time,
-    #                        city, street, geo_lat, geo_long, pin_code)
-    #   Variables ready: hotel_id, hotel_name, opening_time, closing_time, street, city, pin_code, geo_lat, geo_long
+    if USE_DUMMY_DATA:  # DUMMY-DATA: naya ID dummy me H004, H005... ban jata hai
+        hotel_id = dummy.save_hotel(hotel_id, hotel_name, opening_time, closing_time, street, city,
+                                    pin_code, geo_lat, geo_long)
+        flash(f"Hotel register ho gaya! Aapka Hotel ID: {hotel_id}. Login ke liye ise yaad rakho." if is_new
+              else "Hotel details update ho gayi.")
+        return redirect_hotel_profile(hotel_id)
 
-    flash("Hotel details save ho gayi.")
-    return redirect_hotel(hotel_id)
+    if is_new:
+        # DB-TODO [23a]: `hotel` table ki total rows count karo (SELECT COUNT(*) FROM hotel).
+        hotel_row_count = 0  # TODO: DB se actual count yaha daalo
+        hotel_id = f"H{hotel_row_count + 1:03d}"   # H001, H002, ...
+        #   (Dhyan: agar admin kabhi hotel delete karta hai to count+1 purane ID se takra sakta hai.
+        #    Safe tareeka: MAX numeric id + 1 ya AUTO_INCREMENT use karna.)
+        # DB-TODO [23b]: INSERT into hotel (hotel_id, hotel_name, opening_time, closing_time,
+        #   city, street, geo_lat, geo_long, pin_code)
+        #   Variables ready: hotel_id (naya), hotel_name, opening_time, closing_time, street, city,
+        #                    pin_code, geo_lat, geo_long
+        flash(f"Hotel register ho gaya! Aapka Hotel ID: {hotel_id}. Login ke liye ise yaad rakho.")
+    else:
+        # DB-TODO [23c]: UPDATE hotel SET hotel_name, opening_time, closing_time, city, street,
+        #   geo_lat, geo_long, pin_code WHERE hotel_id
+        #   (hotel_id change nahi hota)
+        flash("Hotel details update ho gayi.")
+
+    return redirect_hotel_profile(hotel_id)
 
 
 @app.route("/hotel/phone", methods=["POST"])
@@ -370,13 +515,18 @@ def hotel_phone_add():
 
     if not (hotel_id and phone_no):
         flash("Phone number daalo.")
-        return redirect_hotel(hotel_id)
+        return redirect_hotel_profile(hotel_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.add_phone(hotel_id, phone_no)
+        flash("Phone number add ho gaya.")
+        return redirect_hotel_profile(hotel_id)
 
     # DB-TODO [24]: INSERT into hotel_phone (hotel_id, phone_no). Duplicate (same hotel + number) ho to
     #   error handle karo aur flash me batao.
 
     flash("Phone number add ho gaya.")
-    return redirect_hotel(hotel_id)
+    return redirect_hotel_profile(hotel_id)
 
 
 @app.route("/hotel/phone/delete", methods=["POST"])
@@ -384,10 +534,15 @@ def hotel_phone_delete():
     hotel_id = clean(request.form.get("hotel_id"))
     phone_no = clean(request.form.get("phone_no"))
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_phone(hotel_id, phone_no)
+        flash("Phone number hata diya.")
+        return redirect_hotel_profile(hotel_id)
+
     # DB-TODO [25]: DELETE from hotel_phone WHERE hotel_id AND phone_no
 
     flash("Phone number hata diya.")
-    return redirect_hotel(hotel_id)
+    return redirect_hotel_profile(hotel_id)
 
 
 @app.route("/hotel/menu/add", methods=["POST"])
@@ -400,6 +555,11 @@ def hotel_menu_add():
 
     if not (hotel_id and name) or category not in MENU_CATEGORIES or price is None or price < 0:
         flash("Item name, category aur valid price daalo.")
+        return redirect_hotel(hotel_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.add_menu_item(hotel_id, name, category, price, availability)
+        flash("Menu me item add ho gaya.")
         return redirect_hotel(hotel_id)
 
     # DB-TODO [26]: INSERT into menu_item (hotel_id, item_id, name, category, price, availability)
@@ -421,6 +581,11 @@ def hotel_menu_update():
         flash("Valid price daalo.")
         return redirect_hotel(hotel_id)
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.update_menu_item(hotel_id, item_id, price, availability)
+        flash("Menu item update ho gaya.")
+        return redirect_hotel(hotel_id)
+
     # DB-TODO [27]: UPDATE menu_item SET price, availability WHERE hotel_id AND item_id
     #   Variables ready: hotel_id, item_id, price, availability
 
@@ -432,6 +597,11 @@ def hotel_menu_update():
 def hotel_menu_delete():
     hotel_id = clean(request.form.get("hotel_id"))
     item_id = to_int(request.form.get("item_id"))
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_menu_item(hotel_id, item_id)
+        flash("Menu item hata diya.")
+        return redirect_hotel(hotel_id)
 
     # DB-TODO [28]: DELETE from menu_item WHERE hotel_id AND item_id
     #   Dhyan: order_item me ye item use hua ho to foreign key error aayega.
@@ -451,6 +621,11 @@ def hotel_order_status():
         flash("Ye status hotel set nahi kar sakta.")
         return redirect_hotel(hotel_id)
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.set_order_status(order_id, status)
+        flash(f"Order {order_id} ka status {status} ho gaya.")
+        return redirect_hotel(hotel_id)
+
     # DB-TODO [29]: UPDATE food_order SET status WHERE order_id AND hotel_id
     #   (hotel_id check zaroori hai taaki hotel dusre hotel ka order na badal sake)
     #   Optional: DELIVERED / CANCELLED ho chuke order ko dobara change na hone do.
@@ -464,49 +639,89 @@ def hotel_order_status():
 # ===========================================================================
 
 def redirect_driver(driver_id):
+    """Driver dashboard par bhejta hai."""
     return redirect(f"/driver?driver_id={driver_id or ''}")
+
+
+def redirect_driver_profile(driver_id):
+    """Driver register / profile page par bhejta hai (driver_id ke saath = edit mode)."""
+    return redirect(f"/driver/register?driver_id={driver_id or ''}")
 
 
 @app.route("/driver")
 def driver_dashboard():
     driver_id = clean(request.args.get("driver_id"))
 
+    if not driver_id:
+        flash("Pehle Driver ID daalo ya naya account banao.")
+        return redirect("/")
+
     driver = None        # dict: driver_id, name, contact_no, vehicle_no, status, curr_lat, curr_long, current_city
-    my_orders = []       # list of dict: order_id, hotel_name, hotel_street, hotel_city, customer_name,
-                         #               house, street, city, status, total_price, tip, payment_mode
+    my_orders = []       # list of dict (neeche TODO [31] me poori detail)
     open_orders = []     # list of dict: order_id, hotel_name, hotel_street, hotel_city, city, total_price, tip
     history = []         # list of dict: order_id, hotel_name, delivery_time, tip
     reviews = []         # list of dict: review_id, order_id, rating, text_review
     stats = {}           # dict: completed, active, total_tips, avg_rating
 
-    if driver_id:
-        # DB-TODO [30]: `driver` table se driver_id ki row lo -> driver dict. Na mile to None.
+    # DB-TODO [30]: `driver` table se driver_id ki row lo -> driver dict. Na mile to None.
 
-        # DB-TODO [31]: Is driver ko assigned orders (food_order.driver_id = driver_id)
-        #   Join: hotel (hotel_name, street -> hotel_street, city -> hotel_city),
-        #         customer (name -> customer_name), address (house, street, city via customer_id + address_id)
-        #   -> my_orders = [...]  (DELIVERED/CANCELLED bhi aa sakte hain; template unhe 'Closed' dikhata hai)
+    # DB-TODO [31]: Is driver ko assigned orders (food_order.driver_id = driver_id).
+    #   Driver ko pura pata hona chahiye kaha jana hai, isliye har order ke liye ye sab chahiye:
+    #     order_id, status, total_price, tip, payment_mode, payment_status
+    #     hotel (pickup):   hotel_name, hotel_street (hotel.street), hotel_city (hotel.city),
+    #                       hotel_phone (hotel_phone table se koi ek number), hotel_lat, hotel_long (hotel.geo_lat/geo_long)
+    #     customer (drop):  customer_name, customer_phone (customer.phone_number)
+    #     address (drop):   house, street, city, pin_code, drop_lat, drop_long (address.geo_lat/geo_long)
+    #                       -> food_order.customer_id + food_order.address_id se address row
+    #     items:            order_item JOIN menu_item (hotel_id + item_id) ->
+    #                       order["order_items"] = [{"item_name": menu_item.name, "quantity": order_item.quantity,
+    #                                          "remarks": order_item.remarks}, ...]
+    #   -> my_orders = [ {upar ke saare keys + items}, ... ]  (DELIVERED/CANCELLED bhi aa sakte hain)
 
-        # DB-TODO [32]: Open orders jo koi bhi driver accept kar sakta hai:
-        #   food_order WHERE status='READY' AND driver_id IS NULL
-        #   Join hotel + address (drop city). Optional: driver.current_city se match karke filter karo.
-        #   -> open_orders = [{order_id, hotel_name, hotel_street, hotel_city, city, total_price, tip}, ...]
+    # DB-TODO [32]: Open orders jo koi bhi driver accept kar sakta hai:
+    #   food_order WHERE status='READY' AND driver_id IS NULL
+    #   Join hotel + address (drop city). Optional: driver.current_city se match karke filter karo.
+    #   -> open_orders = [{order_id, hotel_name, hotel_street, hotel_city, city, total_price, tip}, ...]
 
-        # DB-TODO [33]: Delivery history: is driver ke DELIVERED orders
-        #   -> history = [{order_id, hotel_name, delivery_time, tip}, ...]
+    # DB-TODO [33]: Delivery history: is driver ke DELIVERED orders
+    #   -> history = [{order_id, hotel_name, delivery_time, tip}, ...]
 
-        # DB-TODO [34]: `review` WHERE target_type='DRIVER' aur order ka driver_id = driver_id
-        #   -> reviews = [{review_id, order_id, rating, text_review}, ...]
+    # DB-TODO [34]: `review` WHERE target_type='DRIVER' aur order ka driver_id = driver_id
+    #   -> reviews = [{review_id, order_id, rating, text_review}, ...]
 
-        # DB-TODO [35]: Stats: stats = {"completed": (DELIVERED count), "active": (OUT_FOR_DELIVERY/assigned count),
-        #   "total_tips": SUM(tip) of delivered, "avg_rating": AVG(driver reviews)}
-        pass
+    # DB-TODO [35]: Stats: stats = {"completed": (DELIVERED count), "active": (OUT_FOR_DELIVERY/assigned count),
+    #   "total_tips": SUM(tip) of delivered, "avg_rating": AVG(driver reviews)}
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA: driver, deliveries, open orders, history, reviews dummy_data.py se
+        d = dummy.driver_dashboard(driver_id)
+        driver, my_orders, open_orders = d["driver"], d["my_orders"], d["open_orders"]
+        history, reviews, stats = d["history"], d["reviews"], d["stats"]
+
+    if (DB_CONNECTED or USE_DUMMY_DATA) and driver is None:  # DUMMY-DATA: sirf `DB_CONNECTED and` rakhna
+        flash("Ye Driver ID nahi mila. Naya account banao.")
+        return redirect("/driver/register")
 
     return render_template(
         "driver.html",
         driver=driver, my_orders=my_orders, open_orders=open_orders,
         history=history, reviews=reviews, stats=stats,
     )
+
+
+@app.route("/driver/register")
+def driver_register():
+    """Driver register ya profile update page (driver_register.html).
+    driver_id nahi diya -> new registration. driver_id diya -> edit mode."""
+    driver_id = clean(request.args.get("driver_id"))
+
+    driver = None    # dict: driver_id, name, contact_no, vehicle_no
+
+    if driver_id:
+        # DB-TODO [30b]: `driver` table se driver_id ki row lo -> driver dict. Na mile to None.
+        if USE_DUMMY_DATA:  # DUMMY-DATA: driver dummy_data.py se
+            driver = dummy.driver_register(driver_id)
+
+    return render_template("driver_register.html", driver=driver)
 
 
 @app.route("/driver/profile", methods=["POST"])
@@ -517,18 +732,34 @@ def driver_profile():
     vehicle_no = clean(request.form.get("vehicle_no"))
     current_city = clean(request.form.get("current_city"))  # sirf new registration form me aata hai
 
-    if not (driver_id and name and contact_no and vehicle_no):
+    # Form me driver_id sirf EDIT mode me (hidden field se) aata hai.
+    # Naye registration me driver_id None hota hai aur server khud banata hai.
+    is_new = driver_id is None
+
+    if not (name and contact_no and vehicle_no) or (is_new and not current_city):
         flash("Saari required details bharo.")
-        return redirect_driver(driver_id)
+        return redirect_driver_profile(driver_id)
 
-    # DB-TODO [36]: Check karo driver_id exist karta hai ya nahi.
-    #   - Exist karta hai -> UPDATE driver SET name, contact_no, vehicle_no WHERE driver_id
-    #   - Nahi karta      -> INSERT into driver (driver_id, name, contact_no, vehicle_no,
-    #                        status='OFFLINE', curr_lat=NULL, curr_long=NULL, current_city)
-    #   Variables ready: driver_id, name, contact_no, vehicle_no, current_city
+    if USE_DUMMY_DATA:  # DUMMY-DATA: naya ID dummy me D004, D005... ban jata hai
+        driver_id = dummy.save_driver(driver_id, name, contact_no, vehicle_no, current_city)
+        flash(f"Driver register ho gaya! Aapka Driver ID: {driver_id}. Login ke liye ise yaad rakho." if is_new
+              else "Driver profile update ho gayi.")
+        return redirect_driver_profile(driver_id)
 
-    flash("Driver profile save ho gayi.")
-    return redirect_driver(driver_id)
+    if is_new:
+        # DB-TODO [36a]: `driver` table ki total rows count karo (SELECT COUNT(*) FROM driver).
+        driver_row_count = 0  # TODO: DB se actual count yaha daalo
+        driver_id = f"D{driver_row_count + 1:03d}"   # D001, D002, ...
+        #   (Dhyan: driver delete hone par count+1 duplicate ID bana sakta hai; MAX id + 1 safe hai.)
+        # DB-TODO [36b]: INSERT into driver (driver_id, name, contact_no, vehicle_no,
+        #   status='OFFLINE', curr_lat=NULL, curr_long=NULL, current_city)
+        #   Variables ready: driver_id (naya), name, contact_no, vehicle_no, current_city
+        flash(f"Driver register ho gaya! Aapka Driver ID: {driver_id}. Login ke liye ise yaad rakho.")
+    else:
+        # DB-TODO [36c]: UPDATE driver SET name, contact_no, vehicle_no WHERE driver_id
+        flash("Driver profile update ho gayi.")
+
+    return redirect_driver_profile(driver_id)
 
 
 @app.route("/driver/status", methods=["POST"])
@@ -538,6 +769,11 @@ def driver_status():
 
     if status not in DRIVER_STATUSES:
         flash("Galat status.")
+        return redirect_driver(driver_id)
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.set_driver_status(driver_id, status)
+        flash(f"Status {status} set ho gaya.")
         return redirect_driver(driver_id)
 
     # DB-TODO [37]: UPDATE driver SET status WHERE driver_id
@@ -553,6 +789,11 @@ def driver_location():
     curr_lat = to_float(request.form.get("curr_lat"))
     curr_long = to_float(request.form.get("curr_long"))
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.set_driver_location(driver_id, current_city, curr_lat, curr_long)
+        flash("Location update ho gayi.")
+        return redirect_driver(driver_id)
+
     # DB-TODO [38]: UPDATE driver SET current_city, curr_lat, curr_long WHERE driver_id
     #   (curr_lat / curr_long None ho sakte hain -> NULL store karo)
 
@@ -564,6 +805,10 @@ def driver_location():
 def driver_accept():
     driver_id = clean(request.form.get("driver_id"))
     order_id = clean(request.form.get("order_id"))
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        flash(dummy.accept_order(driver_id, order_id))
+        return redirect_driver(driver_id)
 
     # DB-TODO [39]: Transaction me:
     #   (a) Check: driver ka status 'AVAILABLE' hai.
@@ -588,6 +833,11 @@ def driver_order_status():
 
     delivery_time = datetime.now() if status == "DELIVERED" else None
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA: DELIVERED par dummy me driver wapas AVAILABLE ho jata hai
+        dummy.set_order_status(order_id, status, driver_id=driver_id)
+        flash(f"Order {order_id} ka status {status} ho gaya.")
+        return redirect_driver(driver_id)
+
     # DB-TODO [40]: UPDATE food_order SET status (aur DELIVERED ho to delivery_time = delivery_time)
     #   WHERE order_id AND driver_id = driver_id   (driver apna hi order badal sake)
     #   DELIVERED ho to: driver ka status wapas 'AVAILABLE' kar do (UPDATE driver ...).
@@ -600,8 +850,43 @@ def driver_order_status():
 # ===========================================================================
 # 5. ADMIN  (admin.html)
 # ===========================================================================
-# DB-TODO [41]: Admin ke liye login/password ya session check yaha laga sakte ho
-#   (abhi koi protection nahi hai). Ek @app.before_request hook me /admin ke liye check kar sakte ho.
+# Admin password .env file ke `PASSWORD` variable me rakho, jaise:   PASSWORD=mera_secret_password
+# Neeche ka before_request hook /admin aur /admin/... ke har route ko lock karta hai.
+
+@app.before_request
+def protect_admin_pages():
+    path = request.path
+    is_admin_path = path == "/admin" or path.startswith("/admin/")
+    if is_admin_path and path != "/admin/login" and not session.get("is_admin"):
+        flash("Admin dashboard ke liye pehle password daalo.")
+        return redirect("/")
+
+
+@app.route("/admin/login", methods=["POST"])
+def admin_login():
+    expected = os.getenv("PASSWORD")
+    if not expected:
+        flash("Server par PASSWORD set nahi hai (.env file me PASSWORD=... likho). Admin login band hai.")
+        return redirect("/")
+
+    entered = request.form.get("password", "")
+    # compare_digest: timing attack se bachne ke liye safe comparison
+    if hmac.compare_digest(entered.encode("utf-8"), expected.encode("utf-8")):
+        session.clear()
+        session["is_admin"] = True
+        return redirect("/admin")
+
+    time.sleep(1)  # brute-force ko thoda slow karne ke liye
+    flash("Galat password. Dobara try karo.")
+    return redirect("/")
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("is_admin", None)
+    flash("Admin se logout ho gaye.")
+    return redirect("/")
+
 
 @app.route("/admin")
 def admin_dashboard():
@@ -626,6 +911,11 @@ def admin_dashboard():
     # DB-TODO [46]: `driver` table ki saari rows -> drivers  (orders ke dropdown me bhi yahi use hota hai)
     # DB-TODO [47]: `review` table ki saari rows -> reviews
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA: admin ke saare tables dummy_data.py se
+        d = dummy.admin_dashboard()
+        stats, orders, customers = d["stats"], d["orders"], d["customers"]
+        hotels, drivers, reviews = d["hotels"], d["drivers"], d["reviews"]
+
     return render_template(
         "admin.html",
         stats=stats, orders=orders, customers=customers,
@@ -645,6 +935,11 @@ def admin_order_update():
 
     delivery_time = datetime.now() if status == "DELIVERED" else None
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.admin_update_order(order_id, driver_id, status)
+        flash(f"Order {order_id} update ho gaya.")
+        return redirect("/admin")
+
     # DB-TODO [48]: UPDATE food_order SET driver_id (NULL bhi ho sakta hai), status
     #   WHERE order_id. Status DELIVERED ho to delivery_time = delivery_time bhi set karo.
     #   Variables ready: order_id, driver_id, status, delivery_time
@@ -657,6 +952,11 @@ def admin_order_update():
 def admin_customer_delete():
     customer_id = to_int(request.form.get("customer_id"))
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_customer(customer_id)
+        flash("Customer delete ho gaya.")
+        return redirect("/admin")
+
     # DB-TODO [49]: DELETE customer (aur uske address). Orders hain to FK error aa sakta hai ->
     #   ON DELETE CASCADE use karo ya error pakad ke flash karo.
 
@@ -668,6 +968,11 @@ def admin_customer_delete():
 def admin_hotel_delete():
     hotel_id = clean(request.form.get("hotel_id"))
 
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_hotel(hotel_id)
+        flash("Hotel delete ho gaya.")
+        return redirect("/admin")
+
     # DB-TODO [50]: DELETE hotel (hotel_phone, menu_item bhi hatao ya cascade). Orders ho to error handle karo.
 
     flash("Hotel delete ho gaya.")
@@ -677,6 +982,11 @@ def admin_hotel_delete():
 @app.route("/admin/driver/delete", methods=["POST"])
 def admin_driver_delete():
     driver_id = clean(request.form.get("driver_id"))
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_driver(driver_id)
+        flash("Driver delete ho gaya.")
+        return redirect("/admin")
 
     # DB-TODO [51]: DELETE driver. Purane orders me driver_id ho to pehle un orders me driver_id = NULL
     #   karo (ya FK ON DELETE SET NULL use karo).
@@ -688,6 +998,11 @@ def admin_driver_delete():
 @app.route("/admin/review/delete", methods=["POST"])
 def admin_review_delete():
     review_id = clean(request.form.get("review_id"))
+
+    if USE_DUMMY_DATA:  # DUMMY-DATA
+        dummy.delete_review(review_id)
+        flash("Review delete ho gaya.")
+        return redirect("/admin")
 
     # DB-TODO [52]: DELETE from review WHERE review_id
 

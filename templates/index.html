@@ -65,6 +65,12 @@
 
 <header class="hero">
   <div class="container">
+    {% with messages = get_flashed_messages() %}
+      {% for m in messages %}
+        <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">{{ m }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+      {% endfor %}
+    {% endwith %}
     <div class="row align-items-center g-5">
       <div class="col-lg-7">
         <h1>Order from nearby hotels, tracked until it reaches your door.</h1>
@@ -101,7 +107,7 @@
             <button class="btn btn-role w-100" type="submit">Open customer dashboard</button>
           </form>
           <div class="divider">new here?</div>
-          <a class="btn btn-ghost w-100" href="/user">Continue as new customer</a>
+          <a class="btn btn-ghost w-100" href="/user/register">Register as a new customer</a>
         </div>
       </div>
     </div>
@@ -119,7 +125,7 @@
             <button class="btn btn-role w-100" type="submit">Open hotel dashboard</button>
           </form>
           <div class="divider">or</div>
-          <a class="btn btn-ghost w-100" href="/hotel">Register a new hotel</a>
+          <a class="btn btn-ghost w-100" href="/hotel/register">Register a new hotel</a>
         </div>
       </div>
     </div>
@@ -137,7 +143,7 @@
             <button class="btn btn-role w-100" type="submit">Open driver dashboard</button>
           </form>
           <div class="divider">or</div>
-          <a class="btn btn-ghost w-100" href="/driver">Register as a driver</a>
+          <a class="btn btn-ghost w-100" href="/driver/register">Register as a driver</a>
         </div>
       </div>
     </div>
@@ -149,7 +155,12 @@
         <div class="body">
           <h4>Admin</h4>
           <p>Oversee all orders, hotels, drivers, customers and reviews.</p>
-          <a class="btn btn-role w-100 mt-auto" href="/admin">Open admin dashboard</a>
+          <form method="post" action="/admin/login">
+            <label class="form-label small fw-bold" for="admin_password">Admin password</label>
+            <input type="password" class="form-control mb-2" id="admin_password" name="password"
+                   autocomplete="current-password" placeholder="Enter password" required>
+            <button class="btn btn-role w-100" type="submit">Open admin dashboard</button>
+          </form>
         </div>
       </div>
     </div>

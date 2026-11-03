@@ -50,9 +50,9 @@
 <!--
   Variables expected from Flask (render_template('hotel.html', ...)):
   hotel           : row  -> hotel_id, hotel_name, opening_time, closing_time, city, street, geo_lat, geo_long, pin_code  (None = new hotel registration)
-  phones          : list -> phone_no
   menu_items      : list -> item_id, name, category, price, availability
-  orders          : list -> order_id, customer_name, items, status, total_price, time_of_order, driver_name
+  orders          : list -> order_id, customer_name, status, total_price, time_of_order, driver_name,
+                    order_items = list of dict (item_name, quantity, remarks)
   reviews         : list -> review_id, order_id, rating, text_review   (only target_type = hotel)
   stats           : dict -> total_orders, pending_orders, avg_rating, menu_count
 -->
@@ -62,6 +62,7 @@
     <a class="brand" href="/">Food<span>Rush</span></a>
     <div class="d-flex align-items-center gap-3">
       <span class="who">{{ hotel.hotel_name ~ ' · ID ' ~ hotel.hotel_id if hotel else 'New hotel partner' }}</span>
+      {% if hotel %}<a href="/hotel/register?hotel_id={{ hotel.hotel_id }}" class="btn btn-sm btn-line">Edit profile &amp; phones</a>{% endif %}
       <a href="/" class="btn btn-sm btn-line">Switch role</a>
     </div>
   </div>
@@ -76,6 +77,10 @@
     {% endfor %}
   {% endwith %}
 
+  {% if not hotel %}
+    <div class="panel text-center">Hotel nahi mila. <a href="/hotel/register">Register your hotel</a> ya <a href="/">home par jao</a>.</div>
+  {% endif %}
+
   {% if hotel %}
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.total_orders if stats else 0 }}</b><span>Total orders</span></div></div>
@@ -84,7 +89,7 @@
     <div class="col-6 col-lg-3"><div class="stat"><b>{{ stats.menu_count if stats else 0 }}</b><span>Menu items</span></div></div>
   </div>
   <div class="nav-tabs-lite mb-4">
-    <a href="#orders">Orders</a><a href="#menu">Menu</a><a href="#profile">Hotel profile</a><a href="#reviews">Reviews</a>
+    <a href="#orders">Orders</a><a href="#menu">Menu</a><a href="#reviews">Reviews</a>
   </div>
   {% endif %}
 
@@ -101,7 +106,12 @@
             <tr>
               <td class="fw-bold">{{ o.order_id }}</td>
               <td>{{ o.customer_name }}</td>
-              <td class="small">{{ o.items }}</td>
+              <td class="small">
+                {% for i in o.order_items %}
+                  <div><strong>{{ i.quantity }} × {{ i.item_name }}</strong></div>
+                  {% if i.remarks %}<div class="text-danger">Note: {{ i.remarks }}</div>{% endif %}
+                {% endfor %}
+              </td>
               <td>₹{{ o.total_price }}</td>
               <td>{{ o.driver_name if o.driver_name else 'Not assigned' }}</td>
               <td>{{ o.time_of_order }}</td>
@@ -193,65 +203,6 @@
     </div>
   </section>
   {% endif %}
-
-  <!-- ============ PROFILE ============ -->
-  <section id="profile" class="mb-5">
-    <div class="row g-4">
-      <div class="col-lg-8">
-        <div class="panel">
-          <h2 class="panel-title">{{ 'Hotel profile' if hotel else 'Register your hotel' }}</h2>
-          <form method="post" action="/hotel/profile" class="row g-3">
-            <div class="col-md-4"><label class="form-label" for="hotel_id">Hotel ID</label>
-              <input type="text" class="form-control" id="hotel_id" name="hotel_id" maxlength="50" value="{{ hotel.hotel_id if hotel else '' }}" {% if hotel %}readonly{% endif %} required></div>
-            <div class="col-md-8"><label class="form-label" for="hotel_name">Hotel name</label>
-              <input type="text" class="form-control" id="hotel_name" name="hotel_name" maxlength="100" value="{{ hotel.hotel_name if hotel else '' }}" required></div>
-            <div class="col-md-6"><label class="form-label" for="opening_time">Opening time</label>
-              <input type="time" class="form-control" id="opening_time" name="opening_time" value="{{ hotel.opening_time if hotel else '' }}" required></div>
-            <div class="col-md-6"><label class="form-label" for="closing_time">Closing time</label>
-              <input type="time" class="form-control" id="closing_time" name="closing_time" value="{{ hotel.closing_time if hotel else '' }}" required></div>
-            <div class="col-md-8"><label class="form-label" for="street">Street</label>
-              <input type="text" class="form-control" id="street" name="street" maxlength="100" value="{{ hotel.street if hotel else '' }}" required></div>
-            <div class="col-md-4"><label class="form-label" for="city">City</label>
-              <input type="text" class="form-control" id="city" name="city" maxlength="50" value="{{ hotel.city if hotel else '' }}" required></div>
-            <div class="col-md-4"><label class="form-label" for="pin_code">PIN code</label>
-              <input type="number" class="form-control" id="pin_code" name="pin_code" value="{{ hotel.pin_code if hotel else '' }}" required></div>
-            <div class="col-md-4"><label class="form-label" for="geo_lat">Latitude</label>
-              <input type="number" step="0.00000001" class="form-control" id="geo_lat" name="geo_lat" value="{{ hotel.geo_lat if hotel else '' }}"></div>
-            <div class="col-md-4"><label class="form-label" for="geo_long">Longitude</label>
-              <input type="number" step="0.00000001" class="form-control" id="geo_long" name="geo_long" value="{{ hotel.geo_long if hotel else '' }}"></div>
-            <div class="col-12"><button class="btn btn-main" type="submit">{{ 'Update hotel' if hotel else 'Register hotel' }}</button></div>
-          </form>
-        </div>
-      </div>
-
-      {% if hotel %}
-      <div class="col-lg-4">
-        <div class="panel h-100">
-          <h2 class="panel-title">Contact numbers</h2>
-          <div class="mb-3">
-            {% for p in phones %}
-              <form method="post" action="/hotel/phone/delete" class="d-inline">
-                <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
-                <input type="hidden" name="phone_no" value="{{ p.phone_no }}">
-                <span class="phone-chip">{{ p.phone_no }}<button type="submit" aria-label="Remove {{ p.phone_no }}">×</button></span>
-              </form>
-            {% else %}
-              <p class="text-muted small">No phone numbers added.</p>
-            {% endfor %}
-          </div>
-          <form method="post" action="/hotel/phone">
-            <input type="hidden" name="hotel_id" value="{{ hotel.hotel_id }}">
-            <label class="form-label" for="phone_no">Add phone number</label>
-            <div class="d-flex gap-2">
-              <input type="tel" class="form-control" id="phone_no" name="phone_no" maxlength="15" required>
-              <button class="btn btn-main" type="submit">Add</button>
-            </div>
-          </form>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-  </section>
 
   <!-- ============ REVIEWS ============ -->
   {% if hotel %}

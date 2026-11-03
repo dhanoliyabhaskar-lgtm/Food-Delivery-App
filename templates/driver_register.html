@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Profile – FoodRush</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#14232b;--teal:#0f4c5c;--teal-soft:#dbe9ec;--turmeric:#e8a317;--chili:#c8372d;--leaf:#2f7d4f;--bg:#f3f6f7;--line:#d5dfe2;--muted:#5d6f77;--accent:var(--leaf);}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);}
+    h1,h2,h3,h4,h5,h6,.brand{font-family:'Bricolage Grotesque',sans-serif;}
+    .topbar{background:var(--ink);}
+    .topbar .brand{color:#fff;font-weight:800;font-size:1.3rem;text-decoration:none;}
+    .topbar .brand span{color:var(--turmeric);}
+    .topbar .who{color:#cfe3e8;font-size:.9rem;}
+    .panel{background:#fff;border:1px solid var(--line);border-top:6px solid var(--accent);border-radius:14px;padding:1.5rem;}
+    .panel-title{font-weight:700;font-size:1.15rem;margin-bottom:1rem;}
+    .form-label{font-weight:700;font-size:.85rem;margin-bottom:.25rem;}
+    .form-control,.form-select{border-radius:8px;border-color:var(--line);}
+    .form-control:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
+    .form-control[readonly]{background:#eef2f3;}
+    .btn-main{background:var(--teal);color:#fff;font-weight:700;border-radius:8px;border:0;padding:.55rem 1.2rem;}
+    .btn-main:hover{background:#0c3d4a;color:#fff;}
+    .btn-line{border:1.5px solid var(--line);font-weight:700;border-radius:8px;background:#fff;color:var(--ink);}
+    .btn-line:hover{border-color:var(--ink);}
+    .idchip{display:inline-block;background:var(--teal-soft);color:var(--teal);font-weight:800;border-radius:8px;padding:0 .6rem;}
+    .phone-chip{display:inline-flex;align-items:center;gap:.4rem;background:var(--teal-soft);border-radius:999px;padding:.2rem .3rem .2rem .8rem;margin:0 .4rem .4rem 0;font-weight:500;}
+    .phone-chip button{border:0;background:#fff;border-radius:50%;width:1.5rem;height:1.5rem;line-height:1;color:var(--chili);font-weight:700;}
+  </style>
+</head>
+<body>
+
+<!--
+  Variables expected from Flask (render_template('driver_register.html', ...)):
+  driver : row -> driver_id, name, contact_no, vehicle_no
+                  (None = new registration, otherwise profile update)
+-->
+
+<nav class="topbar py-3">
+  <div class="container d-flex justify-content-between align-items-center" style="max-width:860px">
+    <a class="brand" href="/">Food<span>Rush</span></a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="who">{{ driver.name ~ ' · ID ' ~ driver.driver_id if driver else 'New delivery partner' }}</span>
+      <a href="/" class="btn btn-sm btn-line">Home</a>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4" style="max-width:860px">
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}
+      <div class="alert alert-info alert-dismissible fade show" role="alert">{{ m }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <div>
+      <h1 class="h3 fw-bold mb-1">{{ 'Edit driver profile' if driver else 'Register as a delivery partner' }}</h1>
+      {% if driver %}
+        <p class="text-muted mb-0">Your Driver ID is <span class="idchip">{{ driver.driver_id }}</span>. Login ke liye isse yaad rakho.</p>
+      {% else %}
+        <p class="text-muted mb-0">Apni details aur vehicle number bharo. Driver ID registration ke baad automatically mil jayega.</p>
+      {% endif %}
+    </div>
+    {% if driver %}<a class="btn btn-main" href="/driver?driver_id={{ driver.driver_id }}">Go to dashboard</a>{% endif %}
+  </div>
+
+  <div class="panel mb-4">
+    <h2 class="panel-title">Driver details</h2>
+    <form method="post" action="/driver/profile" class="row g-3">
+      {% if driver %}<input type="hidden" name="driver_id" value="{{ driver.driver_id }}">{% endif %}
+      <div class="col-md-6"><label class="form-label" for="name">Name</label>
+        <input type="text" class="form-control" id="name" name="name" maxlength="100" value="{{ driver.name if driver else '' }}" required></div>
+      <div class="col-md-6"><label class="form-label" for="contact_no">Contact number</label>
+        <input type="tel" class="form-control" id="contact_no" name="contact_no" maxlength="15" value="{{ driver.contact_no if driver else '' }}" required></div>
+      <div class="col-md-6"><label class="form-label" for="vehicle_no">Vehicle number</label>
+        <input type="text" class="form-control" id="vehicle_no" name="vehicle_no" maxlength="20" value="{{ driver.vehicle_no if driver else '' }}" required></div>
+      {% if not driver %}
+        <div class="col-md-6"><label class="form-label" for="current_city">Your city</label>
+          <input type="text" class="form-control" id="current_city" name="current_city" maxlength="50" required></div>
+      {% endif %}
+      <div class="col-12"><button class="btn btn-main" type="submit">{{ 'Save changes' if driver else 'Register' }}</button></div>
+    </form>
+  </div>
+  {% if driver %}<div class="text-end"><a class="btn btn-main" href="/driver?driver_id={{ driver.driver_id }}">Go to dashboard</a></div>{% endif %}
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
