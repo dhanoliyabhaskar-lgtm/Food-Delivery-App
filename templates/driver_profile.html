@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}Profile{% endblock %}
+{% block subtitle %}Apni details aur password manage karo.{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:820px">
+  <h2 class="panel-title">Driver profile</h2>
+  <p class="small text-muted">Your Driver ID: <span class="idchip">{{ driver.driver_id if driver else '' }}</span></p>
+  <form method="post" action="/driver/profile" class="row g-3">
+    <div class="col-md-6"><label class="form-label" for="name">Name</label>
+      <input type="text" class="form-control" id="name" name="name" maxlength="100" value="{{ driver.name if driver else '' }}" required></div>
+    <div class="col-md-6"><label class="form-label" for="contact_no">Contact number</label>
+      <input type="tel" class="form-control" id="contact_no" name="contact_no" maxlength="15" value="{{ driver.contact_no if driver else '' }}" required></div>
+    <div class="col-md-6"><label class="form-label" for="vehicle_no">Vehicle number</label>
+      <input type="text" class="form-control" id="vehicle_no" name="vehicle_no" maxlength="20" value="{{ driver.vehicle_no if driver else '' }}" required></div>
+    <div class="col-md-6"><label class="form-label" for="new_password">New password</label>
+      <input type="password" class="form-control" id="new_password" name="new_password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password"></div>
+    <div class="col-12"><button class="btn btn-main" type="submit">Save changes</button></div>
+  </form>
+</div>
+{% endblock %}

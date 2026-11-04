@@ -3,173 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FoodRush – Food Delivery Management System</title>
+  <title>FoodRush – Login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --ink:#14232b; --teal:#0f4c5c; --teal-soft:#dbe9ec; --turmeric:#e8a317;
-      --chili:#c8372d; --leaf:#2f7d4f; --bg:#f3f6f7; --line:#d5dfe2;
-    }
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);}
-    h1,h2,h3,h4,h5,.brand{font-family:'Bricolage Grotesque',sans-serif;}
-    .topbar{background:var(--ink);}
-    .topbar .brand{color:#fff;font-weight:800;font-size:1.35rem;letter-spacing:.2px;}
-    .topbar .brand span{color:var(--turmeric);}
-    .hero{background:var(--teal);color:#fff;padding:4.5rem 0 6.5rem;}
-    .hero h1{font-weight:800;font-size:clamp(2.2rem,5vw,3.6rem);line-height:1.08;max-width:15ch;}
-    .hero p{color:#cfe3e8;max-width:46ch;font-size:1.1rem;}
-    .hero .ticket{background:#fff;color:var(--ink);border-radius:14px;padding:1.4rem 1.6rem;
-      border-left:8px solid var(--turmeric);box-shadow:0 18px 40px rgba(0,0,0,.25);}
-    .ticket dt{font-weight:500;color:#5d6f77;font-size:.85rem;}
-    .ticket dd{font-weight:700;margin-bottom:.7rem;}
-    .ticket .status{display:inline-block;background:var(--teal-soft);color:var(--teal);
-      border-radius:999px;padding:.15rem .7rem;font-size:.8rem;font-weight:700;}
-    .roles{margin-top:-4rem;padding-bottom:4rem;}
-    .role-card{background:#fff;border:1px solid var(--line);border-radius:14px;height:100%;
-      overflow:hidden;display:flex;flex-direction:column;}
-    .role-card .bar{height:6px;}
-    .role-card .body{padding:1.4rem;display:flex;flex-direction:column;flex:1;}
-    .role-card h4{font-weight:700;margin-bottom:.3rem;}
-    .role-card p{color:#5d6f77;font-size:.93rem;flex:1;}
-    .role-card .form-control{border-radius:8px;border-color:var(--line);}
-    .role-card .form-control:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
-    .role-card .divider{display:flex;align-items:center;gap:.6rem;color:#8a9aa1;font-size:.8rem;margin:.7rem 0;}
-    .role-card .divider::before,.role-card .divider::after{content:"";flex:1;height:1px;background:var(--line);}
-    .btn-role{font-weight:700;border-radius:8px;padding:.55rem 1rem;border:0;color:#fff;}
-    .btn-role:hover{color:#fff;filter:brightness(1.1);}
-    .btn-ghost{font-weight:700;border-radius:8px;padding:.5rem 1rem;background:transparent;
-      border:1.5px solid var(--line);color:var(--ink);}
-    .btn-ghost:hover{border-color:var(--ink);background:var(--bg);}
-    .c-customer .bar,.c-customer .btn-role{background:var(--chili);}
-    .c-hotel .bar,.c-hotel .btn-role{background:var(--turmeric);color:var(--ink);}
-    .c-hotel .btn-role{color:var(--ink);}
-    .c-hotel .btn-role:hover{color:var(--ink);}
-    .c-driver .bar,.c-driver .btn-role{background:var(--leaf);}
-    .c-admin .bar,.c-admin .btn-role{background:var(--ink);}
-    footer{color:#6d7f86;font-size:.85rem;}
-    @media (prefers-reduced-motion:no-preference){
-      .role-card{transition:transform .15s ease,box-shadow .15s ease;}
-      .role-card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(20,35,43,.12);}
-    }
+    :root{--ink:#14232b;--teal:#0f4c5c;--turmeric:#e8a317;--chili:#c8372d;--line:#d5dfe2;--muted:#5d6f77;}
+    body{font-family:'DM Sans',sans-serif;background:var(--teal);color:var(--ink);min-height:100vh;}
+    h1,h2,h3,.brand{font-family:'Bricolage Grotesque',sans-serif;}
+    .brand{color:#fff;font-weight:800;font-size:1.5rem;text-decoration:none;}
+    .brand span{color:var(--turmeric);}
+    .hero h1{color:#fff;font-weight:800;font-size:clamp(2.2rem,5vw,3.5rem);line-height:1.08;max-width:14ch;}
+    .hero p{color:#cfe3e8;max-width:44ch;font-size:1.1rem;}
+    .login{background:#fff;border-radius:16px;padding:2rem;border-top:8px solid var(--turmeric);box-shadow:0 18px 40px rgba(0,0,0,.25);}
+    .login h2{font-weight:800;font-size:1.5rem;}
+    .form-label{font-weight:700;font-size:.85rem;}
+    .form-control,.form-select{border-radius:8px;border-color:var(--line);padding:.6rem .8rem;}
+    .form-control:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 .2rem rgba(15,76,92,.18);}
+    .role-select{max-width:5.2rem;font-weight:800;background-color:#eef4f6;}
+    .btn-login{background:var(--teal);color:#fff;font-weight:700;border-radius:8px;border:0;padding:.7rem;}
+    .btn-login:hover{background:#0c3d4a;color:#fff;}
+    .hint{font-size:.85rem;color:var(--muted);}
+    .reg a{font-weight:700;color:var(--teal);text-decoration:none;}
+    .reg a:hover{text-decoration:underline;}
   </style>
 </head>
 <body>
+<div class="container py-4">
+  <a class="brand" href="/">Food<span>Rush</span></a>
 
-<nav class="topbar py-3">
-  <div class="container d-flex justify-content-between align-items-center">
-    <a class="brand text-decoration-none" href="/">Food<span>Rush</span></a>
-    <span class="text-white-50 small">Food Delivery Management System</span>
-  </div>
-</nav>
+  <div class="row align-items-center g-5 hero" style="min-height:75vh">
+    <div class="col-lg-6">
+      <h1>Order from nearby hotels, tracked until it reaches your door.</h1>
+      <p class="mt-3">Customers, hotel partners, delivery partners and admins all work from one system. Pick your role and sign in.</p>
+    </div>
 
-<header class="hero">
-  <div class="container">
-    {% with messages = get_flashed_messages() %}
-      {% for m in messages %}
-        <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">{{ m }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
-      {% endfor %}
-    {% endwith %}
-    <div class="row align-items-center g-5">
-      <div class="col-lg-7">
-        <h1>Order from nearby hotels, tracked until it reaches your door.</h1>
-        <p class="mt-3">Customers, hotel partners, delivery partners and admins all work from one system. Pick your role below to continue.</p>
-      </div>
-      <div class="col-lg-5">
-        <div class="ticket">
-          <h5 class="mb-3">Sample order</h5>
-          <dl class="mb-0">
-            <dt>order_id</dt><dd>ORD-20261102-0042</dd>
-            <dt>Hotel</dt><dd>Spice Garden</dd>
-            <dt>Driver</dt><dd>Ramesh K. · MP09 AB 1234</dd>
-            <dt>Status</dt><dd class="mb-0"><span class="status">Out for delivery</span></dd>
-          </dl>
+    <div class="col-lg-5 offset-lg-1">
+      {% with messages = get_flashed_messages() %}
+        {% for m in messages %}
+          <div class="alert alert-warning alert-dismissible fade show" role="alert">{{ m }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+        {% endfor %}
+      {% endwith %}
+
+      <form class="login" method="post" action="/login">
+        <h2 class="mb-1">Sign in</h2>
+        <p class="hint mb-3">Select your role, then enter your ID and password.</p>
+
+        <label class="form-label" for="user_id">ID</label>
+        <div class="input-group mb-1">
+          <select class="form-select role-select" name="role" id="role" aria-label="Role">
+            <option value="U">U</option>
+            <option value="H">H</option>
+            <option value="D">D</option>
+            <option value="A">A</option>
+          </select>
+          <input type="text" class="form-control" id="user_id" name="user_id" inputmode="numeric"
+                 placeholder="Customer ID" autocomplete="username" required>
         </div>
-      </div>
+        <div class="hint mb-3" id="roleHint">U = User (customer)</div>
+
+        <label class="form-label" for="password">Password</label>
+        <input type="password" class="form-control mb-3" id="password" name="password"
+               autocomplete="current-password" placeholder="Enter password" required>
+
+        <button class="btn btn-login w-100" type="submit">Sign in</button>
+
+        <p class="reg hint text-center mt-4 mb-0">New here? Register as
+          <a href="/user/register">Customer</a> ·
+          <a href="/hotel/register">Hotel</a> ·
+          <a href="/driver/register">Driver</a></p>
+      </form>
     </div>
   </div>
-</header>
-
-<main class="container roles">
-  <div class="row g-4">
-
-    <!-- Customer -->
-    <div class="col-md-6 col-xl-3">
-      <div class="role-card c-customer">
-        <div class="bar"></div>
-        <div class="body">
-          <h4>Customer</h4>
-          <p>Browse hotels, order food, track deliveries and leave reviews.</p>
-          <form method="get" action="/user">
-            <label class="form-label small fw-bold" for="cust_id">Customer ID</label>
-            <input type="number" class="form-control mb-2" id="cust_id" name="customer_id" min="1" placeholder="e.g. 101" required>
-            <button class="btn btn-role w-100" type="submit">Open customer dashboard</button>
-          </form>
-          <div class="divider">new here?</div>
-          <a class="btn btn-ghost w-100" href="/user/register">Register as a new customer</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hotel Partner -->
-    <div class="col-md-6 col-xl-3">
-      <div class="role-card c-hotel">
-        <div class="bar"></div>
-        <div class="body">
-          <h4>Hotel Partner</h4>
-          <p>Manage your menu, availability and incoming orders.</p>
-          <form method="get" action="/hotel">
-            <label class="form-label small fw-bold" for="hotel_id">Hotel ID</label>
-            <input type="text" class="form-control mb-2" id="hotel_id" name="hotel_id" maxlength="50" placeholder="e.g. H001" required>
-            <button class="btn btn-role w-100" type="submit">Open hotel dashboard</button>
-          </form>
-          <div class="divider">or</div>
-          <a class="btn btn-ghost w-100" href="/hotel/register">Register a new hotel</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delivery Partner -->
-    <div class="col-md-6 col-xl-3">
-      <div class="role-card c-driver">
-        <div class="bar"></div>
-        <div class="body">
-          <h4>Delivery Partner</h4>
-          <p>Go online, accept deliveries and update your location.</p>
-          <form method="get" action="/driver">
-            <label class="form-label small fw-bold" for="driver_id">Driver ID</label>
-            <input type="text" class="form-control mb-2" id="driver_id" name="driver_id" maxlength="50" placeholder="e.g. D001" required>
-            <button class="btn btn-role w-100" type="submit">Open driver dashboard</button>
-          </form>
-          <div class="divider">or</div>
-          <a class="btn btn-ghost w-100" href="/driver/register">Register as a driver</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Admin -->
-    <div class="col-md-6 col-xl-3">
-      <div class="role-card c-admin">
-        <div class="bar"></div>
-        <div class="body">
-          <h4>Admin</h4>
-          <p>Oversee all orders, hotels, drivers, customers and reviews.</p>
-          <form method="post" action="/admin/login">
-            <label class="form-label small fw-bold" for="admin_password">Admin password</label>
-            <input type="password" class="form-control mb-2" id="admin_password" name="password"
-                   autocomplete="current-password" placeholder="Enter password" required>
-            <button class="btn btn-role w-100" type="submit">Open admin dashboard</button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</main>
-
-<footer class="text-center pb-4">DBMS Academic Project · Flask + MySQL</footer>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Role ke hisaab se hint aur placeholder badalta hai
+  const info = {
+    U: ['U = User (customer)', 'Customer ID'],
+    H: ['H = Hotel partner', 'Hotel ID'],
+    D: ['D = Delivery driver', 'Driver ID'],
+    A: ['A = Admin', 'Admin ID']
+  };
+  const role = document.getElementById('role');
+  function update() {
+    document.getElementById('roleHint').textContent = info[role.value][0];
+    document.getElementById('user_id').placeholder = info[role.value][1];
+    document.getElementById('user_id').inputMode = role.value === 'A' ? 'text' : 'numeric';
+  }
+  role.addEventListener('change', update);
+  update();
+</script>
 </body>
 </html>

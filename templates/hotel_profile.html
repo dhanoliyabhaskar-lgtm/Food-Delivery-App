@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block title %}Profile{% endblock %}
+{% block subtitle %}Hotel ki details, password aur contact numbers.{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="panel h-100">
+      <h2 class="panel-title">Hotel details</h2>
+      <p class="small text-muted">Your Hotel ID: <span class="idchip">{{ hotel.hotel_id if hotel else '' }}</span></p>
+      <form method="post" action="/hotel/profile" class="row g-3">
+        <div class="col-12"><label class="form-label" for="hotel_name">Hotel name</label>
+          <input type="text" class="form-control" id="hotel_name" name="hotel_name" maxlength="100" value="{{ hotel.hotel_name if hotel else '' }}" required></div>
+        <div class="col-md-6"><label class="form-label" for="opening_time">Opening time</label>
+          <input type="time" class="form-control" id="opening_time" name="opening_time" value="{{ hotel.opening_time if hotel else '' }}" required></div>
+        <div class="col-md-6"><label class="form-label" for="closing_time">Closing time</label>
+          <input type="time" class="form-control" id="closing_time" name="closing_time" value="{{ hotel.closing_time if hotel else '' }}" required></div>
+        <div class="col-md-8"><label class="form-label" for="street">Street</label>
+          <input type="text" class="form-control" id="street" name="street" maxlength="100" value="{{ hotel.street if hotel else '' }}" required></div>
+        <div class="col-md-4"><label class="form-label" for="city">City</label>
+          <input type="text" class="form-control" id="city" name="city" maxlength="50" value="{{ hotel.city if hotel else '' }}" required></div>
+        <div class="col-md-4"><label class="form-label" for="pin_code">PIN code</label>
+          <input type="number" class="form-control" id="pin_code" name="pin_code" value="{{ hotel.pin_code if hotel else '' }}" required></div>
+        <div class="col-md-4"><label class="form-label" for="geo_lat">Latitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="geo_lat" name="geo_lat" value="{{ hotel.geo_lat if hotel and hotel.geo_lat is not none else '' }}"></div>
+        <div class="col-md-4"><label class="form-label" for="geo_long">Longitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="geo_long" name="geo_long" value="{{ hotel.geo_long if hotel and hotel.geo_long is not none else '' }}"></div>
+        <div class="col-12"><label class="form-label" for="new_password">New password</label>
+          <input type="password" class="form-control" id="new_password" name="new_password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password"></div>
+        <div class="col-12"><button class="btn btn-main" type="submit">Save changes</button></div>
+      </form>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="panel h-100">
+      <h2 class="panel-title">Contact numbers</h2>
+      <div class="mb-3">
+        {% for p in phones %}
+          <form method="post" action="/hotel/phone/delete" class="d-inline">
+            <input type="hidden" name="phone_no" value="{{ p.phone_no }}">
+            <span class="phone-chip">{{ p.phone_no }}<button type="submit" aria-label="Remove {{ p.phone_no }}">×</button></span>
+          </form>
+        {% else %}
+          <p class="text-muted small">No phone numbers added.</p>
+        {% endfor %}
+      </div>
+      <form method="post" action="/hotel/phone">
+        <label class="form-label" for="phone_no">Add phone number</label>
+        <div class="d-flex gap-2">
+          <input type="tel" class="form-control" id="phone_no" name="phone_no" maxlength="15" required>
+          <button class="btn btn-main" type="submit">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block title %}Profile{% endblock %}
+{% block subtitle %}Apni details, password aur delivery addresses manage karo.{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-xl-5">
+    <div class="panel h-100">
+      <h2 class="panel-title">Your profile</h2>
+      <p class="small text-muted">Your Customer ID: <span class="idchip">{{ customer.customer_id if customer else '' }}</span></p>
+      <form method="post" action="/user/profile" class="row g-3">
+        <div class="col-12"><label class="form-label" for="name">Name</label>
+          <input type="text" class="form-control" id="name" name="name" maxlength="100" value="{{ customer.name if customer else '' }}" required></div>
+        <div class="col-12"><label class="form-label" for="phone_number">Phone number</label>
+          <input type="number" class="form-control" id="phone_number" name="phone_number" value="{{ customer.phone_number if customer else '' }}" required></div>
+        <div class="col-12"><label class="form-label" for="new_password">New password</label>
+          <input type="password" class="form-control" id="new_password" name="new_password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password"></div>
+        <div class="col-12"><button class="btn btn-main" type="submit">Save changes</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-xl-7" id="addresses">
+    <div class="panel h-100">
+      <h2 class="panel-title">Delivery addresses</h2>
+      {% if addresses %}
+        <ul class="list-group mb-4">
+          {% for a in addresses %}
+            <li class="list-group-item"><strong>{{ a.house }}, {{ a.street }}</strong>
+              <span class="text-muted">· {{ a.city }} – {{ a.pin_code }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">Abhi koi address saved nahi hai. Order ke liye kam se kam ek address chahiye.</p>
+      {% endif %}
+      <h3 class="h6 fw-bold">Add a new address</h3>
+      <form method="post" action="/user/address" class="row g-2">
+        <div class="col-md-4"><label class="form-label" for="house">House</label>
+          <input type="text" class="form-control" id="house" name="house" maxlength="50" required></div>
+        <div class="col-md-8"><label class="form-label" for="street">Street</label>
+          <input type="text" class="form-control" id="street" name="street" maxlength="100" required></div>
+        <div class="col-md-5"><label class="form-label" for="city">City</label>
+          <input type="text" class="form-control" id="city" name="city" maxlength="50" required></div>
+        <div class="col-md-3"><label class="form-label" for="pin_code">PIN code</label>
+          <input type="number" class="form-control" id="pin_code" name="pin_code" required></div>
+        <div class="col-md-2"><label class="form-label" for="geo_lat">Latitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="geo_lat" name="geo_lat"></div>
+        <div class="col-md-2"><label class="form-label" for="geo_long">Longitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="geo_long" name="geo_long"></div>
+        <div class="col-12 mt-2"><button class="btn btn-main" type="submit">Save address</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

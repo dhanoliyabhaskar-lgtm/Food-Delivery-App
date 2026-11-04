@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block title %}Status & Location{% endblock %}
+{% block subtitle %}Apna status aur current location update karo.{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-xl-4">
+    <div class="panel h-100">
+      <h2 class="panel-title">Availability</h2>
+      <p>Current status: <span class="st {{ driver.status|lower if driver else '' }}">{{ driver.status if driver else '-' }}</span></p>
+      <form method="post" action="/driver/status">
+        <label class="form-label" for="status">Change status</label>
+        <select class="form-select mb-3" id="status" name="status">
+          {% for s in ['AVAILABLE', 'BUSY', 'OFFLINE'] %}
+            <option value="{{ s }}" {% if driver and driver.status == s %}selected{% endif %}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-main" type="submit">Update status</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-xl-8">
+    <div class="panel h-100">
+      <h2 class="panel-title">Current location</h2>
+      <form method="post" action="/driver/location" class="row g-3">
+        <div class="col-md-4"><label class="form-label" for="current_city">City</label>
+          <input type="text" class="form-control" id="current_city" name="current_city" maxlength="50" value="{{ driver.current_city if driver and driver.current_city else '' }}" required></div>
+        <div class="col-md-4"><label class="form-label" for="curr_lat">Latitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="curr_lat" name="curr_lat" value="{{ driver.curr_lat if driver and driver.curr_lat is not none else '' }}"></div>
+        <div class="col-md-4"><label class="form-label" for="curr_long">Longitude</label>
+          <input type="number" step="0.00000001" class="form-control" id="curr_long" name="curr_long" value="{{ driver.curr_long if driver and driver.curr_long is not none else '' }}"></div>
+        <div class="col-12 d-flex gap-2 flex-wrap">
+          <button class="btn btn-main" type="submit">Save location</button>
+          <button class="btn btn-line" type="button" id="geoBtn">Use my device location</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById('geoBtn').addEventListener('click', () => {
+    if (!navigator.geolocation) return alert('Location is not supported in this browser.');
+    navigator.geolocation.getCurrentPosition(p => {
+      document.getElementById('curr_lat').value = p.coords.latitude.toFixed(8);
+      document.getElementById('curr_long').value = p.coords.longitude.toFixed(8);
+    }, () => alert('Could not read your location. Enter it manually.'));
+  });
+</script>
+{% endblock %}

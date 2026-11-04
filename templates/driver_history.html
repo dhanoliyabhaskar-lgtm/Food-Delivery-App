@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}History{% endblock %}
+{% block subtitle %}Aapki poori ki hui deliveries.{% endblock %}
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-4"><div class="stat"><b>{{ stats.completed or 0 }}</b><span>Deliveries completed</span></div></div>
+  <div class="col-6 col-xl-4"><div class="stat"><b>₹{{ stats.total_tips or 0 }}</b><span>Tips earned</span></div></div>
+  <div class="col-12 col-xl-4"><div class="stat"><b>{{ stats.avg_rating or '-' }}</b><span>Average rating</span></div></div>
+</div>
+<div class="panel">
+  <h2 class="panel-title">Delivery history</h2>
+  <div class="table-responsive">
+    <table class="table tbl mb-0">
+      <thead><tr><th>Order ID</th><th>Hotel</th><th>Customer</th><th>Order total</th><th>Tip</th><th>Delivered at</th></tr></thead>
+      <tbody>
+      {% for h in history %}
+        <tr><td class="fw-bold">{{ h.order_id }}</td><td>{{ h.hotel_name }}</td><td>{{ h.customer_name }}</td>
+          <td>₹{{ h.total_price }}</td><td>₹{{ h.tip }}</td><td>{{ h.delivery_time }}</td></tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No completed deliveries yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

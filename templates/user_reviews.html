@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}Reviews{% endblock %}
+{% block subtitle %}Delivered order par hotel ya driver ko rating do.{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-xl-6">
+    <div class="panel h-100">
+      <h2 class="panel-title">Write a review</h2>
+      {% if delivered_orders %}
+        <form method="post" action="/user/review" class="row g-3">
+          <div class="col-12"><label class="form-label" for="order_id">Order</label>
+            <select class="form-select" id="order_id" name="order_id" required>
+              <option value="" selected disabled>Select delivered order</option>
+              {% for d in delivered_orders %}
+                <option value="{{ d.order_id }}">{{ d.order_id }} · {{ d.hotel_name }}{% if d.driver_name %} · {{ d.driver_name }}{% endif %}</option>
+              {% endfor %}
+            </select></div>
+          <div class="col-12"><label class="form-label" for="target_type">Review for</label>
+            <select class="form-select" id="target_type" name="target_type" required>
+              <option value="" selected disabled>Hotel or driver</option>
+              <option value="HOTEL">Hotel</option><option value="DRIVER">Delivery driver</option>
+            </select></div>
+          <div class="col-12">
+            <span class="form-label d-block" id="ratingLabel">Rating</span>
+            <div class="stars" role="radiogroup" aria-labelledby="ratingLabel">
+              {% for r in range(1, 6) %}
+                <input type="radio" name="rating" id="rate{{ r }}" value="{{ r }}" {% if r == 5 %}required{% endif %}>
+                <label for="rate{{ r }}">{{ r }}</label>
+              {% endfor %}
+            </div></div>
+          <div class="col-12"><label class="form-label" for="text_review">Your review</label>
+            <textarea class="form-control" id="text_review" name="text_review" rows="3" placeholder="How was the food or delivery?"></textarea></div>
+          <div class="col-12"><button class="btn btn-main" type="submit">Submit review</button></div>
+        </form>
+      {% else %}
+        <p class="text-muted mb-0">Order deliver hone ke baad aap review de sakte ho.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="panel h-100">
+      <h2 class="panel-title">My reviews</h2>
+      {% for r in my_reviews %}
+        <div class="review">
+          <span class="rate">{{ r.rating }}/5</span>
+          <span class="small text-muted ms-2">{{ r.target_type }} · {{ r.hotel_name }} · {{ r.order_id }}</span>
+          <p class="mb-0 mt-1">{{ r.text_review if r.text_review else 'No written review.' }}</p>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">Aapne abhi tak koi review nahi diya.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

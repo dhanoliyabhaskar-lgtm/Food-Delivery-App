@@ -57,7 +57,7 @@
     <a class="brand" href="/">Food<span>Rush</span></a>
     <div class="d-flex align-items-center gap-3">
       <span class="who">Administrator</span>
-      <a href="/admin/logout" class="btn btn-sm btn-line">Logout</a>
+      <a href="/logout" class="btn btn-sm btn-line">Logout</a>
     </div>
   </div>
 </nav>
@@ -177,7 +177,6 @@
               <td class="fw-bold">{{ h.hotel_id }}</td><td>{{ h.hotel_name }}</td><td>{{ h.city }}</td>
               <td>{{ h.pin_code }}</td><td>{{ h.opening_time }}</td><td>{{ h.closing_time }}</td>
               <td class="text-end">
-                <a class="btn btn-sm btn-line" href="/hotel?hotel_id={{ h.hotel_id }}">Open</a>
                 <form method="post" action="/admin/hotel/delete" class="d-inline" onsubmit="return confirm('Delete this hotel and its menu?')">
                   <input type="hidden" name="hotel_id" value="{{ h.hotel_id }}">
                   <button class="btn btn-sm btn-del" type="submit">Delete</button>
@@ -204,7 +203,6 @@
               <td>{{ d.vehicle_no }}</td><td>{{ d.current_city }}</td>
               <td><span class="st {{ d.status|lower }}">{{ d.status }}</span></td>
               <td class="text-end">
-                <a class="btn btn-sm btn-line" href="/driver?driver_id={{ d.driver_id }}">Open</a>
                 <form method="post" action="/admin/driver/delete" class="d-inline" onsubmit="return confirm('Delete this driver?')">
                   <input type="hidden" name="driver_id" value="{{ d.driver_id }}">
                   <button class="btn btn-sm btn-del" type="submit">Delete</button>

@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block title %}Menu{% endblock %}
+{% block subtitle %}Apne menu items add, update ya hata sakte ho.{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-xl-4">
+    <div class="panel">
+      <h2 class="panel-title">Add menu item</h2>
+      <form method="post" action="/hotel/menu/add">
+        <div class="mb-3"><label class="form-label" for="m_name">Item name</label>
+          <input type="text" class="form-control" id="m_name" name="name" maxlength="100" required></div>
+        <div class="mb-3"><label class="form-label" for="category">Category</label>
+          <select class="form-select" id="category" name="category" required>
+            <option value="" selected disabled>Select category</option>
+            <option value="Starter">Starter</option><option value="Main Course">Main Course</option>
+            <option value="Dessert">Dessert</option><option value="Beverage">Beverage</option>
+            <option value="Snack">Snack</option>
+          </select></div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label" for="m_price">Price (₹)</label>
+            <input type="number" step="0.01" min="0" class="form-control" id="m_price" name="price" required></div>
+          <div class="col-6"><label class="form-label" for="m_av">Availability</label>
+            <select class="form-select" id="m_av" name="availability"><option value="1">Available</option><option value="0">Unavailable</option></select></div>
+        </div>
+        <button class="btn btn-warn w-100" type="submit">Add to menu</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-xl-8">
+    <div class="panel">
+      <h2 class="panel-title">Your menu</h2>
+      <div class="table-responsive">
+        <table class="table tbl mb-0">
+          <thead><tr><th>Item</th><th>Category</th><th>Price (₹)</th><th>Availability</th><th></th></tr></thead>
+          <tbody>
+          {% for item in menu_items %}
+            <tr>
+              <td class="fw-bold">
+                <form method="post" action="/hotel/menu/update" id="mf{{ item.item_id }}">
+                  <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                </form>
+                {{ item.name }}
+              </td>
+              <td>{{ item.category }}</td>
+              <td><input form="mf{{ item.item_id }}" type="number" step="0.01" min="0" class="form-control form-control-sm" style="width:6.5rem" name="price" value="{{ item.price }}" aria-label="Price of {{ item.name }}"></td>
+              <td><select form="mf{{ item.item_id }}" class="form-select form-select-sm" style="width:9rem" name="availability" aria-label="Availability of {{ item.name }}">
+                <option value="1" {% if item.availability %}selected{% endif %}>Available</option>
+                <option value="0" {% if not item.availability %}selected{% endif %}>Unavailable</option></select></td>
+              <td class="text-end text-nowrap">
+                <button form="mf{{ item.item_id }}" class="btn btn-sm btn-main" type="submit">Save</button>
+                <button form="mf{{ item.item_id }}" class="btn btn-sm btn-del" type="submit" formaction="/hotel/menu/delete" formnovalidate onclick="return confirm('Delete this item?')">Delete</button>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="empty">Your menu is empty. Add your first item.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

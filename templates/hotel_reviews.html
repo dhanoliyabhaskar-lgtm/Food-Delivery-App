@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block title %}Reviews{% endblock %}
+{% block subtitle %}Customers ne aapke hotel ke baare me kya kaha.{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2 class="panel-title">Customer reviews <span class="rate ms-2">{{ avg_rating if avg_rating else '-' }}</span></h2>
+  {% for r in reviews %}
+    <div class="review">
+      <span class="rate">{{ r.rating }}/5</span><span class="small text-muted ms-2">Order {{ r.order_id }}</span>
+      <p class="mb-0 mt-1">{{ r.text_review if r.text_review else 'No written review.' }}</p>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">No reviews yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

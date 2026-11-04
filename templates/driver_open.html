@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Open Orders{% endblock %}
+{% block subtitle %}Jo orders ready hain aur abhi kisi driver ko assign nahi hue.{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2 class="panel-title">Open orders</h2>
+  {% if driver and driver.status != 'AVAILABLE' %}
+    <div class="alert alert-warning">Order accept karne ke liye pehle <a href="/driver/availability">status Available</a> karo.</div>
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table tbl mb-0">
+      <thead><tr><th>Order ID</th><th>Pickup from</th><th>Items</th><th>Drop city</th><th>Total</th><th>Tip</th><th></th></tr></thead>
+      <tbody>
+      {% for o in open_orders %}
+        <tr>
+          <td class="fw-bold">{{ o.order_id }}</td>
+          <td>{{ o.hotel_name }}<div class="small text-muted">{{ o.hotel_street }}, {{ o.hotel_city }}</div></td>
+          <td class="small">{% for i in o.order_items %}<div>{{ i.quantity }} × {{ i.item_name }}</div>{% endfor %}</td>
+          <td>{{ o.city }}</td>
+          <td>₹{{ o.total_price }}</td>
+          <td>₹{{ o.tip }}</td>
+          <td class="text-end">
+            <form method="post" action="/driver/accept">
+              <input type="hidden" name="order_id" value="{{ o.order_id }}">
+              <button class="btn btn-sm btn-go" type="submit" {% if not driver or driver.status != 'AVAILABLE' %}disabled{% endif %}>Accept delivery</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty">No open orders right now.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

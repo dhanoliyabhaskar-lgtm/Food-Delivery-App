@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+{% block title %}Hotels & Menu{% endblock %}
+{% block subtitle %}Hotel chuno, dishes select karo aur order karo.{% endblock %}
+{% block content %}
+<form method="post" action="/user/order" id="orderForm">
+  <input type="hidden" name="hotel_id" value="{{ selected_hotel.hotel_id if selected_hotel else '' }}">
+
+  <div class="menu-grid">
+    <!-- Section: Hotels -->
+    <section class="col-card" aria-label="Hotels">
+      <h2 class="panel-title">Hotels</h2>
+      {% for h in hotels %}
+        <a class="hotel-link {% if selected_hotel and selected_hotel.hotel_id == h.hotel_id %}active{% endif %}"
+           href="/user/menu?hotel_id={{ h.hotel_id }}">
+          <b>{{ h.hotel_name }}</b>
+          <small>{{ h.street }}, {{ h.city }}</small>
+          <small>Open {{ h.opening_time }} – {{ h.closing_time }}</small>
+        </a>
+      {% else %}
+        <div class="empty">No hotels available.</div>
+      {% endfor %}
+    </section>
+
+    <!-- Section: Menu -->
+    <section class="col-card" aria-label="Menu">
+      {% if selected_hotel %}
+        <h2 class="panel-title">Menu · {{ selected_hotel.hotel_name }}</h2>
+        <div class="row g-3">
+          {% for item in menu_items %}
+            <div class="col-xl-6">
+              <div class="menu-row {% if not item.availability %}unavailable{% endif %}">
+                <div>
+                  <h6 class="item-name">{{ item.name }}</h6>
+                  <span class="cat">{{ item.category }}</span>
+                  {% if not item.availability %}<span class="small text-danger ms-1">Not available</span>{% endif %}
+                  <input type="text" class="form-control form-control-sm mt-2" name="remarks" maxlength="255"
+                         placeholder="Remarks (e.g. less spicy)" {% if not item.availability %}disabled{% endif %}>
+                </div>
+                <div class="text-end">
+                  <div class="price">₹{{ item.price }}</div>
+                  <input type="hidden" name="item_id" value="{{ item.item_id }}">
+                  <label class="visually-hidden" for="qty{{ item.item_id }}">Quantity for {{ item.name }}</label>
+                  <input type="number" class="form-control form-control-sm qty mt-2 ms-auto" id="qty{{ item.item_id }}"
+                         name="quantity" min="0" max="20" value="0" data-price="{{ item.price }}"
+                         {% if not item.availability %}disabled{% endif %}>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="col-12 empty">This hotel has no menu items yet.</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">Select a hotel to see its menu.</div>
+      {% endif %}
+    </section>
+
+    <!-- Section: Cart & amount -->
+    <section class="cart-col" aria-label="Cart">
+      <div class="col-card cart">
+        <h2 class="panel-title">Cart &amp; checkout</h2>
+        <div id="cartLines"></div>
+        <div class="cart-line mt-2"><span>Subtotal</span><span id="subtotal">₹0.00</span></div>
+        <div class="cart-line"><span>Tip</span><span id="tipShown">₹0.00</span></div>
+        <div class="cart-total"><span>Total (before coupon)</span><span id="grand">₹0.00</span></div>
+        <p class="small text-muted mt-1 mb-3">Coupon ka discount order place hone par server lagata hai.</p>
+
+        <div class="mb-3">
+          <label class="form-label" for="address_id">Delivery address</label>
+          <select class="form-select" id="address_id" name="address_id" required>
+            <option value="" selected disabled>Select address</option>
+            {% for a in addresses %}
+              <option value="{{ a.address_id }}">{{ a.house }}, {{ a.street }}, {{ a.city }}</option>
+            {% endfor %}
+          </select>
+          {% if not addresses %}
+            <div class="small text-danger mt-1">Koi saved address nahi hai. <a href="/user/profile">Profile me address add karo</a>.</div>
+          {% endif %}
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label" for="coupon">Coupon code</label>
+            <input type="text" class="form-control" id="coupon" name="coupon" maxlength="50" placeholder="Optional"></div>
+          <div class="col-6"><label class="form-label" for="tip">Tip (₹)</label>
+            <input type="number" class="form-control" id="tip" name="tip" min="0" step="0.01" value="0"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="payment_mode">Payment mode</label>
+          <select class="form-select" id="payment_mode" name="payment_mode" required>
+            <option value="" selected disabled>Select payment mode</option>
+            <option value="CASH">Cash on delivery</option>
+            <option value="UPI">UPI</option>
+            <option value="CARD">Card</option>
+            <option value="WALLET">Wallet</option>
+          </select>
+        </div>
+        <button class="btn btn-order w-100" type="submit" id="placeBtn" disabled>Place order</button>
+      </div>
+    </section>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Live cart summary (final total server par calculate hota hai)
+  (function () {
+    const qtyInputs = document.querySelectorAll('input.qty');
+    const tip = document.getElementById('tip');
+    const box = document.getElementById('cartLines');
+    const fmt = n => '₹' + n.toFixed(2);
+    const empty = '<div class="text-muted small">Kisi dish ki quantity daalo, wo yaha dikhegi.</div>';
+    function update() {
+      let subtotal = 0;
+      box.innerHTML = '';
+      qtyInputs.forEach(q => {
+        const n = parseInt(q.value, 10) || 0;
+        if (n > 0) {
+          const price = parseFloat(q.dataset.price) || 0;
+          subtotal += n * price;
+          const row = document.createElement('div');
+          row.className = 'cart-line';
+          const l = document.createElement('span'), r = document.createElement('span');
+          l.textContent = n + ' × ' + q.closest('.menu-row').querySelector('.item-name').textContent;
+          r.textContent = fmt(n * price);
+          row.append(l, r); box.append(row);
+        }
+      });
+      if (!box.children.length) box.innerHTML = empty;
+      const t = parseFloat(tip.value) || 0;
+      document.getElementById('subtotal').textContent = fmt(subtotal);
+      document.getElementById('tipShown').textContent = fmt(t);
+      document.getElementById('grand').textContent = fmt(subtotal + t);
+      document.getElementById('placeBtn').disabled = subtotal <= 0;
+    }
+    qtyInputs.forEach(q => q.addEventListener('input', update));
+    tip.addEventListener('input', update);
+    update();
+  })();
+</script>
+{% endblock %}
